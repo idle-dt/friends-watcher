@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   getDiffSincePrevious,
   getLatestRelationships,
-  isAppError,
   syncNow,
+  toAppError,
   type AppError,
   type DiffResult,
   type Relationship,
@@ -12,6 +12,8 @@ import {
 import { DiffBanner } from '../components/DiffBanner'
 import { RelationshipRow } from '../components/RelationshipRow'
 import { StatusEmpty } from '../components/StatusEmpty'
+import { SessionExpiredBanner } from '../components/SessionExpiredBanner'
+import { RateLimitedBanner } from '../components/RateLimitedBanner'
 
 const EMPTY_DIFF: DiffResult = {
   since: null,
@@ -49,7 +51,7 @@ export function MainView({ session, onSessionExpired }: MainViewProps) {
       try {
         await refresh()
       } catch (e) {
-        if (!cancelled && isAppError(e)) setError(e)
+        if (!cancelled) setError(toAppError(e))
       } finally {
         if (!cancelled) setLoadingInitial(false)
       }
@@ -66,16 +68,11 @@ export function MainView({ session, onSessionExpired }: MainViewProps) {
       await syncNow()
       await refresh()
     } catch (e) {
-      if (isAppError(e)) {
-        setError(e)
-        if (e.kind === 'session_expired') onSessionExpired()
-      } else {
-        setError({ kind: 'network', message: String(e) })
-      }
+      setError(toAppError(e))
     } finally {
       setSyncing(false)
     }
-  }, [refresh, onSessionExpired])
+  }, [refresh])
 
   const filtered = useMemo(() => {
     if (filter === 'all') return relationships
@@ -116,11 +113,17 @@ export function MainView({ session, onSessionExpired }: MainViewProps) {
 
       <DiffBanner diff={diff} />
 
-      {error && error.kind !== 'session_expired' && (
-        <div className={`error-banner error-${error.kind}`} role="alert">
-          {error.message}
-        </div>
+      {error?.kind === 'session_expired' && (
+        <SessionExpiredBanner onReturnToLogin={onSessionExpired} />
       )}
+      {error?.kind === 'rate_limited' && <RateLimitedBanner />}
+      {error &&
+        error.kind !== 'session_expired' &&
+        error.kind !== 'rate_limited' && (
+          <div className={`error-banner error-${error.kind}`} role="alert">
+            {error.message}
+          </div>
+        )}
 
       {syncing && (
         <div className="sync-progress" role="status">

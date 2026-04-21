@@ -40,27 +40,40 @@ export interface DiffResult {
   lost_followers: UserRow[]
 }
 
-export type AppErrorKind =
-  | 'session_expired'
-  | 'rate_limited'
-  | 'network'
-  | 'decode'
-  | 'db'
-  | 'io'
+export type AppError =
+  | { kind: 'session_expired'; message: string }
+  | { kind: 'rate_limited'; message: string }
+  | { kind: 'network'; message: string }
+  | { kind: 'decode'; message: string }
+  | { kind: 'db'; message: string }
+  | { kind: 'io'; message: string }
 
-export interface AppError {
-  kind: AppErrorKind
-  message: string
-}
+export type AppErrorKind = AppError['kind']
+
+const APP_ERROR_KINDS: readonly AppErrorKind[] = [
+  'session_expired',
+  'rate_limited',
+  'network',
+  'decode',
+  'db',
+  'io',
+]
 
 export function isAppError(e: unknown): e is AppError {
+  if (typeof e !== 'object' || e === null) return false
+  const obj = e as { kind?: unknown; message?: unknown }
   return (
-    typeof e === 'object' &&
-    e !== null &&
-    'kind' in e &&
-    'message' in e &&
-    typeof (e as { kind: unknown }).kind === 'string'
+    typeof obj.kind === 'string' &&
+    (APP_ERROR_KINDS as readonly string[]).includes(obj.kind) &&
+    typeof obj.message === 'string'
   )
+}
+
+export function toAppError(e: unknown): AppError {
+  if (isAppError(e)) return e
+  const message =
+    e instanceof Error ? e.message : typeof e === 'string' ? e : String(e)
+  return { kind: 'network', message }
 }
 
 export function getSessionState(): Promise<SessionState> {

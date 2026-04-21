@@ -143,6 +143,51 @@ body,
   font-size: 13px;
 }
 
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.banner-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.banner-body strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.banner-session-expired {
+  background: rgba(231, 76, 60, 0.12);
+  color: var(--danger);
+}
+
+.banner-rate-limited {
+  background: rgba(243, 156, 18, 0.12);
+  color: var(--warning);
+}
+
+.banner-action {
+  padding: 6px 14px;
+  border-radius: 6px;
+  background: var(--danger);
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.banner-action:hover {
+  opacity: 0.9;
+}
+
 .filters {
   display: flex;
   gap: 8px;

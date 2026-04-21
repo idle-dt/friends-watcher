@@ -245,11 +245,11 @@ These must be done manually before/after ralphex, not inside a task:
 
 ### Task 7: Session-expired and rate-limited banners
 
-- [ ] Implement `src/components/SessionExpiredBanner.tsx` ("Please log in again") with a button that flips the app back to `LoginView` and reloads the IG webview to the login URL
-- [ ] Implement `src/components/RateLimitedBanner.tsx` ("Instagram is rate-limiting — try again later")
-- [ ] Extend `src/lib/tauri.ts` to surface `AppError` discriminants from the Rust side to the UI as a typed union
-- [ ] Update `MainView.tsx` to render the appropriate banner when `sync_now` rejects with `SessionExpired` or `RateLimited`
-- [ ] Confirm `cargo check` is green
+- [x] Implement `src/components/SessionExpiredBanner.tsx` ("Please log in again") with a button that flips the app back to `LoginView` and reloads the IG webview to the login URL
+- [x] Implement `src/components/RateLimitedBanner.tsx` ("Instagram is rate-limiting — try again later")
+- [x] Extend `src/lib/tauri.ts` to surface `AppError` discriminants from the Rust side to the UI as a typed union
+- [x] Update `MainView.tsx` to render the appropriate banner when `sync_now` rejects with `SessionExpired` or `RateLimited`
+- [x] Confirm `cargo check` is green
 
 ### Task 8: README — dev, build, first-launch
 

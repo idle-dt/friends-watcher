@@ -14,7 +14,7 @@ dist/
 .env
 .env.*
 
-# Personal notes / drafts under docs, but keep docs/plans/ tracked
-docs/
+# Personal notes / drafts under docs, but keep docs/plans/ tracked.
+# Must use docs/* (not docs/) so negation can re-include children.
+docs/*
 !docs/plans/
-!docs/plans/**

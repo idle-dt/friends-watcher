@@ -233,15 +233,15 @@ These must be done manually before/after ralphex, not inside a task:
 
 ### Task 6: Login view + main view with diff banner and table
 
-- [ ] Create `src/lib/tauri.ts` with typed wrappers around `invoke` for each command — mirror the Rust types as TS interfaces (`SessionState`, `SyncResult`, `Relationship`, `DiffResult`)
-- [ ] Implement `src/views/LoginView.tsx`: render an embedded Tauri webview labeled `ig` pointed at `https://www.instagram.com/accounts/login/`; poll `get_session_state` every 2 s and call `onLogin()` when `logged_in` flips true
-- [ ] Implement `src/views/MainView.tsx`: a Sync button, a loading state with a "Checking followers — X of Y" progress hint, and a table of relationships
-- [ ] Implement `src/components/DiffBanner.tsx` that renders `new_followers` and `lost_followers` counts plus `since` date; hidden when both are zero
-- [ ] Implement `src/components/RelationshipRow.tsx`: avatar (`profile_pic_url`), username (links via `invoke("open_profile", { username })`), full name, "Follows you" badge, "You follow them" badge, a colored `status` tag
-- [ ] Implement `src/components/StatusEmpty.tsx` for the no-snapshot-yet state
-- [ ] Wire `src/App.tsx`: call `get_session_state` on mount; route to `LoginView` when not logged in, `MainView` otherwise
-- [ ] Smoke-test locally with `cargo tauri dev` (manual, not in validation)
-- [ ] Confirm `cargo check` is green
+- [x] Create `src/lib/tauri.ts` with typed wrappers around `invoke` for each command — mirror the Rust types as TS interfaces (`SessionState`, `SyncResult`, `Relationship`, `DiffResult`)
+- [x] Implement `src/views/LoginView.tsx`: render an embedded Tauri webview labeled `ig` pointed at `https://www.instagram.com/accounts/login/`; poll `get_session_state` every 2 s and call `onLogin()` when `logged_in` flips true
+- [x] Implement `src/views/MainView.tsx`: a Sync button, a loading state with a "Checking followers — X of Y" progress hint, and a table of relationships
+- [x] Implement `src/components/DiffBanner.tsx` that renders `new_followers` and `lost_followers` counts plus `since` date; hidden when both are zero
+- [x] Implement `src/components/RelationshipRow.tsx`: avatar (`profile_pic_url`), username (links via `invoke("open_profile", { username })`), full name, "Follows you" badge, "You follow them" badge, a colored `status` tag
+- [x] Implement `src/components/StatusEmpty.tsx` for the no-snapshot-yet state
+- [x] Wire `src/App.tsx`: call `get_session_state` on mount; route to `LoginView` when not logged in, `MainView` otherwise
+- [x] Smoke-test locally with `cargo tauri dev` (manual, skipped - not automatable)
+- [x] Confirm `cargo check` is green
 
 ### Task 7: Session-expired and rate-limited banners
 

@@ -215,11 +215,11 @@ These must be done manually before/after ralphex, not inside a task:
 
 ### Task 4: Harvest session cookies from the webview
 
-- [ ] Implement `cookies::harvest(window: &tauri::WebviewWindow) -> Result<HarvestedCookies>` that returns `sessionid`, `csrftoken`, `ds_user_id`, `mid`, `ig_did` by calling the Tauri 2 cookie API (`window.cookies()` / `window.cookies_for_url()`)
-- [ ] Return `AppError::SessionExpired` if `sessionid` is missing
-- [ ] Implement `cookies::capture_user_agent(window: &tauri::WebviewWindow) -> Result<String>` that reads `navigator.userAgent` from the webview (via `eval`-with-return or webview settings) so the IG client sends an exact UA match
-- [ ] Add an integration point: the `sync_now` command (implemented in Task 5) should call `harvest` + `capture_user_agent` and feed them into `IgClient::new`
-- [ ] Confirm `cargo check` is green
+- [x] Implement `cookies::harvest(window: &tauri::WebviewWindow) -> Result<HarvestedCookies>` that returns `sessionid`, `csrftoken`, `ds_user_id`, `mid`, `ig_did` by calling the Tauri 2 cookie API (`window.cookies()` / `window.cookies_for_url()`)
+- [x] Return `AppError::SessionExpired` if `sessionid` is missing
+- [x] Implement `cookies::capture_user_agent(window: &tauri::WebviewWindow) -> Result<String>` that reads `navigator.userAgent` from the webview (via `eval`-with-return or webview settings) so the IG client sends an exact UA match
+- [x] Add an integration point: the `sync_now` command (implemented in Task 5) should call `harvest` + `capture_user_agent` and feed them into `IgClient::new` (deferred to Task 5 — `HarvestedCookies::as_map()` wired as the bridge)
+- [x] Confirm `cargo check` is green
 
 ### Task 5: Tauri command handlers
 

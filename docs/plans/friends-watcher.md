@@ -178,14 +178,14 @@ These must be done manually before/after ralphex, not inside a task:
 
 ### Task 1: Scaffold Tauri 2 project + baseline config
 
-- [ ] Initialize the frontend: `npm create vite@latest . -- --template react-ts` (use the working dir — answer prompts to overwrite nothing important)
-- [ ] Install Tauri CLI + API: `npm install --save-dev @tauri-apps/cli@^2` and `npm install @tauri-apps/api@^2`
-- [ ] Run `npx tauri init` with identifier `com.friendswatcher.app`, window title `Friends Watcher`, dev URL `http://localhost:5173`, dist dir `../dist`, frontend dev command `npm run dev`, frontend build command `npm run build`
-- [ ] Edit `src-tauri/tauri.conf.json`: set window min size to 900×600, productName `Friends Watcher`
-- [ ] Add Rust deps to `src-tauri/Cargo.toml`: `reqwest = { version = "0.12", features = ["cookies", "json", "rustls-tls"], default-features = false }`, `rusqlite = { version = "0.31", features = ["bundled"] }`, `serde = { version = "1", features = ["derive"] }`, `serde_json = "1"`, `tokio = { version = "1", features = ["full"] }`, `tauri-plugin-opener = "2"`, `thiserror = "1"`, `chrono = { version = "0.4", features = ["serde"] }`, `dirs = "5"`
-- [ ] Create stub module files with empty `pub` scaffolding: `src-tauri/src/{commands.rs,instagram.rs,cookies.rs,db.rs,models.rs,error.rs}`
-- [ ] Declare modules in `src-tauri/src/main.rs` (or `lib.rs` per Tauri 2 layout) and register the `tauri-plugin-opener` plugin in the builder
-- [ ] Confirm `cargo check --manifest-path src-tauri/Cargo.toml` is green
+- [x] Initialize the frontend: `npm create vite@latest . -- --template react-ts` (use the working dir — answer prompts to overwrite nothing important)
+- [x] Install Tauri CLI + API: `npm install --save-dev @tauri-apps/cli@^2` and `npm install @tauri-apps/api@^2`
+- [x] Run `npx tauri init` with identifier `com.friendswatcher.app`, window title `Friends Watcher`, dev URL `http://localhost:5173`, dist dir `../dist`, frontend dev command `npm run dev`, frontend build command `npm run build`
+- [x] Edit `src-tauri/tauri.conf.json`: set window min size to 900×600, productName `Friends Watcher`
+- [x] Add Rust deps to `src-tauri/Cargo.toml`: `reqwest = { version = "0.12", features = ["cookies", "json", "rustls-tls"], default-features = false }`, `rusqlite = { version = "0.31", features = ["bundled"] }`, `serde = { version = "1", features = ["derive"] }`, `serde_json = "1"`, `tokio = { version = "1", features = ["full"] }`, `tauri-plugin-opener = "2"`, `thiserror = "1"`, `chrono = { version = "0.4", features = ["serde"] }`, `dirs = "5"`
+- [x] Create stub module files with empty `pub` scaffolding: `src-tauri/src/{commands.rs,instagram.rs,cookies.rs,db.rs,models.rs,error.rs}`
+- [x] Declare modules in `src-tauri/src/main.rs` (or `lib.rs` per Tauri 2 layout) and register the `tauri-plugin-opener` plugin in the builder
+- [x] Confirm `cargo check --manifest-path src-tauri/Cargo.toml` is green
 
 ### Task 2: SQLite schema, snapshot writes, diff queries
 

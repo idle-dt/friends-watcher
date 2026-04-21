@@ -1,73 +1,115 @@
-# React + TypeScript + Vite
+# Friends Watcher
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A single-user macOS desktop app that tracks one Instagram account's followers
+and surfaces who unfollowed since the last sync. Not distributed via the App
+Store — build and run locally.
 
-Currently, two official plugins are available:
+![Screenshot placeholder](docs/screenshot.png)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Overview
 
-## React Compiler
+Friends Watcher logs into your own Instagram account inside an embedded
+WKWebView, then uses the session cookies to read your followers and following
+lists through Instagram's internal web API. Each sync is written to a local
+SQLite snapshot; the diff between the two most recent snapshots tells you who
+unfollowed you since last time.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+v1 is strictly read-only:
 
-## Expanding the ESLint configuration
+- No unfollow actions.
+- No auto-sync, no background jobs, no notifications.
+- Every sync is user-initiated via the Sync button.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Privacy
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- No password ever leaves the webview. You log in to Instagram the same way you
+  would in a browser; Friends Watcher never sees your credentials.
+- No server. There is no backend — the app talks directly to
+  `instagram.com/api/v1/` from your machine.
+- No telemetry. Nothing is sent anywhere except Instagram.
+- All data — session cookies and follower snapshots — lives in
+  `~/Library/Application Support/com.friendswatcher.app/`. Delete that folder
+  to wipe everything.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Prerequisites
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- macOS 10.15 or newer.
+- [Rust stable](https://www.rust-lang.org/tools/install) (install via
+  `rustup`).
+- Node.js 20 or newer.
+- Xcode Command Line Tools: `xcode-select --install`.
+
+## Dev loop
+
+```sh
+npm install
+npm run tauri dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+`tauri dev` starts the Vite dev server and a debug build of the Tauri shell.
+First launch takes a while because Cargo has to compile the Rust dependencies;
+subsequent launches are fast.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+If you prefer invoking the Tauri CLI directly:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```sh
+cargo tauri dev
 ```
+
+(requires `cargo install tauri-cli --version '^2'`; the repo's npm-scripts
+route is the recommended path since it pins the CLI version via
+`@tauri-apps/cli`.)
+
+## Release build
+
+Universal (Intel + Apple Silicon) `.app` + `.dmg`:
+
+```sh
+rustup target add aarch64-apple-darwin x86_64-apple-darwin
+npm run tauri build -- --target universal-apple-darwin
+```
+
+Output lands in `src-tauri/target/universal-apple-darwin/release/bundle/`.
+
+## First launch
+
+The bundle is unsigned, so Gatekeeper will block it on a fresh Mac. To open it
+the first time:
+
+1. In Finder, right-click (or Control-click) `Friends Watcher.app` and choose
+   **Open**.
+2. macOS will warn that the app is from an unidentified developer. Click
+   **Open** again.
+3. Log in with your Instagram account inside the embedded window. The app
+   detects the login by watching the `sessionid` cookie and flips to the main
+   view automatically.
+4. Click **Sync**. The first sync takes ~1.5 seconds per 50 followers (plus
+   the same for followings) because of the built-in rate-limit pacing.
+
+Subsequent launches open normally.
+
+## Troubleshooting
+
+**"Please log in again" banner.** Instagram returned 401 or a
+`login_required` body. Click the banner's login button; the app reopens the
+Instagram login page in the embedded webview. Re-authenticate and retry the
+sync.
+
+**"Instagram is rate-limiting — try again later" banner.** Instagram returned
+429 or a `feedback_required` / `checkpoint_required` body. The client already
+retried with 5s / 15s / 45s backoff before surfacing the banner. Wait a few
+minutes (sometimes hours, if you hit a checkpoint) and retry. If you keep
+hitting the banner, log in to Instagram in a normal browser and clear any
+security checkpoints there first.
+
+**Sync stops partway.** The API client has a hard cap of 20,000 users per
+sync as a defensive safeguard. If you legitimately have more, that cap needs
+to be lifted in `src-tauri/src/instagram.rs`.
+
+## Known limits
+
+- One Instagram account at a time.
+- 20,000-user defensive cap per sync.
+- v1 is read-only — no unfollow, no bulk actions.
+- Sync is manual only. There is no scheduled or background refresh.
+- macOS only. The code leans on WKWebView and the macOS data directory layout.

@@ -253,9 +253,9 @@ These must be done manually before/after ralphex, not inside a task:
 
 ### Task 8: README — dev, build, first-launch
 
-- [ ] Create `README.md` with sections: Overview, Privacy (no password, no server), Prerequisites (Rust stable, Node 20+, Xcode CLI tools), Dev loop (`npm install` + `cargo tauri dev`), Release build (`cargo tauri build --target universal-apple-darwin`), First-launch instructions (right-click the `.app` → Open → Open again on the Gatekeeper prompt), Troubleshooting (rate-limit banner, session-expired flow), Known limits (20k users, v1 read-only)
-- [ ] Include a screenshot placeholder (`docs/screenshot.png`) — don't commit the image in this task
-- [ ] Confirm `cargo check` is green
+- [x] Create `README.md` with sections: Overview, Privacy (no password, no server), Prerequisites (Rust stable, Node 20+, Xcode CLI tools), Dev loop (`npm install` + `cargo tauri dev`), Release build (`cargo tauri build --target universal-apple-darwin`), First-launch instructions (right-click the `.app` → Open → Open again on the Gatekeeper prompt), Troubleshooting (rate-limit banner, session-expired flow), Known limits (20k users, v1 read-only)
+- [x] Include a screenshot placeholder (`docs/screenshot.png`) — don't commit the image in this task
+- [x] Confirm `cargo check` is green
 
 ### Task 9: Universal macOS bundle config
 

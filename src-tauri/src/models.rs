@@ -75,3 +75,12 @@ pub struct SessionState {
     pub username: Option<String>,
     pub last_sync_at: Option<DateTime<Utc>>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OwnProfile {
+    pub id: String,
+    pub username: String,
+    pub full_name: Option<String>,
+    pub followers_count: i64,
+    pub following_count: i64,
+}

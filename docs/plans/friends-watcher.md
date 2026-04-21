@@ -202,16 +202,16 @@ These must be done manually before/after ralphex, not inside a task:
 
 ### Task 3: Instagram API client — pagination, headers, rate limiting
 
-- [ ] Implement `error::AppError` as a `thiserror` enum with variants `SessionExpired`, `RateLimited`, `Network(reqwest::Error)`, `Decode(serde_json::Error)`, `Db(rusqlite::Error)`, `Io(std::io::Error)`; derive `serde::Serialize` via a manual impl so it crosses the Tauri boundary cleanly
-- [ ] Define header constants in `instagram.rs`: `X_IG_APP_ID = "936619743392459"`, `X_ASBD_ID = "198387"`, plus static strings for `Referer` and `Accept`
-- [ ] Implement `instagram::IgClient` holding a configured `reqwest::Client` with a cookie jar, the runtime-captured User-Agent, and the csrftoken value
-- [ ] Implement `IgClient::new(user_agent: String, cookies: HashMap<String, String>) -> Result<Self>` that seeds the cookie jar for `https://www.instagram.com/` with all required cookies
-- [ ] Implement private helper `send(url) -> Result<serde_json::Value>` that attaches every required header (including `X-CSRFToken` from the provided cookies) and maps HTTP 401 / body-contains-`"login_required"` → `SessionExpired`, HTTP 429 / body-contains-`"feedback_required"` or `"checkpoint_required"` → retry with backoff 5s, 15s, 45s (max 3 attempts) then `RateLimited`
-- [ ] Implement `IgClient::resolve_profile(username: &str) -> Result<OwnProfile>` hitting `/users/web_profile_info/`; extract `data.user.{id, username, full_name, edge_followed_by.count, edge_follow.count}`
-- [ ] Implement `IgClient::fetch_followers(user_id: &str) -> Result<Vec<UserRow>>` looping over `/friendships/<id>/followers/?count=50&max_id=<cursor>`, following `next_max_id`, sleeping 1.5 s between pages, stopping at 20,000 users
-- [ ] Implement `IgClient::fetch_following(user_id: &str) -> Result<Vec<UserRow>>` with the same shape
-- [ ] Parse `users[].{pk, username, full_name, is_verified, is_private, profile_pic_url}` into `UserRow`
-- [ ] Confirm `cargo check` is green
+- [x] Implement `error::AppError` as a `thiserror` enum with variants `SessionExpired`, `RateLimited`, `Network(reqwest::Error)`, `Decode(serde_json::Error)`, `Db(rusqlite::Error)`, `Io(std::io::Error)`; derive `serde::Serialize` via a manual impl so it crosses the Tauri boundary cleanly
+- [x] Define header constants in `instagram.rs`: `X_IG_APP_ID = "936619743392459"`, `X_ASBD_ID = "198387"`, plus static strings for `Referer` and `Accept`
+- [x] Implement `instagram::IgClient` holding a configured `reqwest::Client` with a cookie jar, the runtime-captured User-Agent, and the csrftoken value
+- [x] Implement `IgClient::new(user_agent: String, cookies: HashMap<String, String>) -> Result<Self>` that seeds the cookie jar for `https://www.instagram.com/` with all required cookies
+- [x] Implement private helper `send(url) -> Result<serde_json::Value>` that attaches every required header (including `X-CSRFToken` from the provided cookies) and maps HTTP 401 / body-contains-`"login_required"` → `SessionExpired`, HTTP 429 / body-contains-`"feedback_required"` or `"checkpoint_required"` → retry with backoff 5s, 15s, 45s (max 3 attempts) then `RateLimited`
+- [x] Implement `IgClient::resolve_profile(username: &str) -> Result<OwnProfile>` hitting `/users/web_profile_info/`; extract `data.user.{id, username, full_name, edge_followed_by.count, edge_follow.count}`
+- [x] Implement `IgClient::fetch_followers(user_id: &str) -> Result<Vec<UserRow>>` looping over `/friendships/<id>/followers/?count=50&max_id=<cursor>`, following `next_max_id`, sleeping 1.5 s between pages, stopping at 20,000 users
+- [x] Implement `IgClient::fetch_following(user_id: &str) -> Result<Vec<UserRow>>` with the same shape
+- [x] Parse `users[].{pk, username, full_name, is_verified, is_private, profile_pic_url}` into `UserRow`
+- [x] Confirm `cargo check` is green
 
 ### Task 4: Harvest session cookies from the webview
 

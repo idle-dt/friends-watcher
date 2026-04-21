@@ -189,16 +189,16 @@ These must be done manually before/after ralphex, not inside a task:
 
 ### Task 2: SQLite schema, snapshot writes, diff queries
 
-- [ ] Implement `db::open_db()` that resolves `~/Library/Application Support/com.friendswatcher.app/data.db` via `dirs::data_dir()`, creates the parent directory if missing, and returns a `rusqlite::Connection`
-- [ ] Implement `db::init_schema(&Connection)` that creates `snapshots`, `followers`, `following` tables and the three indexes exactly as specified in the Context
-- [ ] Call `init_schema` once on app startup; use `CREATE TABLE IF NOT EXISTS` so reruns are safe
-- [ ] Define `models::UserRow`, `models::Snapshot`, `models::Relationship` (with `status: &'static str` or a `RelationshipStatus` enum), `models::DiffResult`, `models::SyncResult`, `models::SessionState` — all with `serde::{Serialize, Deserialize}` where they cross the Tauri boundary
-- [ ] Implement `db::write_snapshot(&Connection, owner_user_id, owner_username, followers: &[UserRow], following: &[UserRow]) -> Result<i64>` in a single transaction; returns the new snapshot id
-- [ ] Implement `db::get_latest_snapshot(&Connection) -> Result<Option<Snapshot>>` ordered by `taken_at DESC`
-- [ ] Implement `db::get_previous_snapshot(&Connection) -> Result<Option<Snapshot>>` (second-most-recent)
-- [ ] Implement `db::get_diff(&Connection, current_id, previous_id) -> Result<DiffResult>` returning `new_followers` (in current, not in previous) and `lost_followers` (in previous, not in current)
-- [ ] Implement `db::get_relationships(&Connection, snapshot_id) -> Result<Vec<Relationship>>` joining `followers` and `following` at the given snapshot to compute `mutual | fan | ghost` per user
-- [ ] Confirm `cargo check` is green
+- [x] Implement `db::open_db()` that resolves `~/Library/Application Support/com.friendswatcher.app/data.db` via `dirs::data_dir()`, creates the parent directory if missing, and returns a `rusqlite::Connection`
+- [x] Implement `db::init_schema(&Connection)` that creates `snapshots`, `followers`, `following` tables and the three indexes exactly as specified in the Context
+- [x] Call `init_schema` once on app startup; use `CREATE TABLE IF NOT EXISTS` so reruns are safe
+- [x] Define `models::UserRow`, `models::Snapshot`, `models::Relationship` (with `status: &'static str` or a `RelationshipStatus` enum), `models::DiffResult`, `models::SyncResult`, `models::SessionState` — all with `serde::{Serialize, Deserialize}` where they cross the Tauri boundary
+- [x] Implement `db::write_snapshot(&Connection, owner_user_id, owner_username, followers: &[UserRow], following: &[UserRow]) -> Result<i64>` in a single transaction; returns the new snapshot id
+- [x] Implement `db::get_latest_snapshot(&Connection) -> Result<Option<Snapshot>>` ordered by `taken_at DESC`
+- [x] Implement `db::get_previous_snapshot(&Connection) -> Result<Option<Snapshot>>` (second-most-recent)
+- [x] Implement `db::get_diff(&Connection, current_id, previous_id) -> Result<DiffResult>` returning `new_followers` (in current, not in previous) and `lost_followers` (in previous, not in current)
+- [x] Implement `db::get_relationships(&Connection, snapshot_id) -> Result<Vec<Relationship>>` joining `followers` and `following` at the given snapshot to compute `mutual | fan | ghost` per user
+- [x] Confirm `cargo check` is green
 
 ### Task 3: Instagram API client — pagination, headers, rate limiting
 

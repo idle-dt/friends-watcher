@@ -17,6 +17,18 @@ pub fn run() {
             .build(),
         )?;
       }
+      match db::open_db().and_then(|conn| {
+        db::init_schema(&conn)?;
+        Ok(conn)
+      }) {
+        Ok(_conn) => {
+          log::info!("sqlite schema ready");
+        }
+        Err(e) => {
+          log::error!("failed to initialize sqlite: {e}");
+          return Err(Box::new(e) as Box<dyn std::error::Error>);
+        }
+      }
       Ok(())
     })
     .run(tauri::generate_context!())

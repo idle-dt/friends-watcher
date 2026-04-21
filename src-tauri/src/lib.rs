@@ -5,6 +5,10 @@ mod error;
 mod instagram;
 mod models;
 
+use tauri::Manager;
+
+use crate::commands::DbState;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -17,20 +21,19 @@ pub fn run() {
             .build(),
         )?;
       }
-      match db::open_db().and_then(|conn| {
-        db::init_schema(&conn)?;
-        Ok(conn)
-      }) {
-        Ok(_conn) => {
-          log::info!("sqlite schema ready");
-        }
-        Err(e) => {
-          log::error!("failed to initialize sqlite: {e}");
-          return Err(Box::new(e) as Box<dyn std::error::Error>);
-        }
-      }
+      let conn = db::open_db()?;
+      db::init_schema(&conn)?;
+      log::info!("sqlite schema ready");
+      app.manage(DbState::new(conn));
       Ok(())
     })
+    .invoke_handler(tauri::generate_handler![
+      commands::get_session_state,
+      commands::sync_now,
+      commands::get_latest_relationships,
+      commands::get_diff_since_previous,
+      commands::open_profile,
+    ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }

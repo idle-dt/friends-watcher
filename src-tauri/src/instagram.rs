@@ -153,6 +153,13 @@ impl IgClient {
         }
     }
 
+    pub async fn resolve_profile_by_id(&self, user_id: &str) -> Result<OwnProfile> {
+        let json = self
+            .send(&format!("/api/v1/users/{}/info/", user_id), &[])
+            .await?;
+        parse_profile_by_id(&json, user_id)
+    }
+
     pub async fn resolve_profile(&self, username: &str) -> Result<OwnProfile> {
         let json = self
             .send(
@@ -294,6 +301,51 @@ fn extract_id(v: Option<&Value>) -> Option<String> {
     None
 }
 
+fn parse_profile_by_id(json: &Value, fallback_id: &str) -> Result<OwnProfile> {
+    let user = json.get("user").ok_or_else(|| {
+        AppError::Io(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "by-id profile response missing user",
+        ))
+    })?;
+    let id = extract_id(user.get("pk"))
+        .or_else(|| extract_id(user.get("id")))
+        .unwrap_or_else(|| fallback_id.to_string());
+    let username = user
+        .get("username")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+        .ok_or_else(|| {
+            AppError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "by-id profile response missing username",
+            ))
+        })?;
+    let full_name = user
+        .get("full_name")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
+    let followers_count = user
+        .get("follower_count")
+        .or_else(|| user.get("edge_followed_by").and_then(|v| v.get("count")))
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0);
+    let following_count = user
+        .get("following_count")
+        .or_else(|| user.get("edge_follow").and_then(|v| v.get("count")))
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0);
+    Ok(OwnProfile {
+        id,
+        username,
+        full_name,
+        followers_count,
+        following_count,
+    })
+}
+
 fn parse_user(v: &Value) -> Option<UserRow> {
     let ig_user_id = extract_id(v.get("pk")).or_else(|| extract_id(v.get("id")))?;
     let username = v.get("username").and_then(|u| u.as_str())?.to_string();
@@ -413,6 +465,62 @@ mod tests {
     fn ig_client_builds_with_valid_cookies() {
         let client = IgClient::new("Mozilla/5.0".to_string(), good_cookies());
         assert!(client.is_ok());
+    }
+
+    #[test]
+    fn parse_profile_by_id_extracts_username_and_counts() {
+        let v = json!({
+            "user": {
+                "pk": "42",
+                "username": "me",
+                "full_name": "Me Myself",
+                "follower_count": 123,
+                "following_count": 45,
+            }
+        });
+        let p = parse_profile_by_id(&v, "42").unwrap();
+        assert_eq!(p.id, "42");
+        assert_eq!(p.username, "me");
+        assert_eq!(p.full_name.as_deref(), Some("Me Myself"));
+        assert_eq!(p.followers_count, 123);
+        assert_eq!(p.following_count, 45);
+    }
+
+    #[test]
+    fn parse_profile_by_id_falls_back_to_edge_counts() {
+        let v = json!({
+            "user": {
+                "pk": 42,
+                "username": "me",
+                "edge_followed_by": { "count": 9 },
+                "edge_follow": { "count": 3 },
+            }
+        });
+        let p = parse_profile_by_id(&v, "42").unwrap();
+        assert_eq!(p.followers_count, 9);
+        assert_eq!(p.following_count, 3);
+        assert!(p.full_name.is_none());
+    }
+
+    #[test]
+    fn parse_profile_by_id_uses_fallback_id_when_pk_missing() {
+        let v = json!({ "user": { "username": "me" } });
+        let p = parse_profile_by_id(&v, "99").unwrap();
+        assert_eq!(p.id, "99");
+    }
+
+    #[test]
+    fn parse_profile_by_id_errors_when_username_missing() {
+        let v = json!({ "user": { "pk": "42" } });
+        let err = parse_profile_by_id(&v, "42").unwrap_err();
+        assert!(matches!(err, AppError::Io(_)));
+    }
+
+    #[test]
+    fn parse_profile_by_id_errors_when_user_missing() {
+        let v = json!({ "something": {} });
+        let err = parse_profile_by_id(&v, "42").unwrap_err();
+        assert!(matches!(err, AppError::Io(_)));
     }
 
     #[test]

@@ -223,13 +223,13 @@ These must be done manually before/after ralphex, not inside a task:
 
 ### Task 5: Tauri command handlers
 
-- [ ] Implement `commands::get_session_state(window) -> SessionState` that returns `{ logged_in: bool, username: Option<String>, last_sync_at: Option<chrono::DateTime<Utc>> }` — `logged_in` is true iff `sessionid` is present, `username` comes from the most recent snapshot, `last_sync_at` from `snapshots.taken_at`
-- [ ] Implement `commands::sync_now(window) -> Result<SyncResult, AppError>`: harvest cookies → capture UA → `IgClient::new` → resolve own profile (using `ds_user_id` cookie to look up the username) → fetch followers → fetch following → `write_snapshot` → compute diff against previous snapshot → return `SyncResult`
-- [ ] Implement `commands::get_latest_relationships() -> Result<Vec<Relationship>, AppError>` delegating to `db::get_relationships` at the latest snapshot id
-- [ ] Implement `commands::get_diff_since_previous() -> Result<DiffResult, AppError>` using the latest two snapshots; if fewer than two snapshots exist, return an empty diff with `since = null`
-- [ ] Implement `commands::open_profile(app: AppHandle, username: String)` calling `tauri_plugin_opener::OpenerExt::opener(&app).open_url(format!("https://instagram.com/{username}"), None::<String>)`
-- [ ] Register all commands in the Tauri `invoke_handler!` macro in `main.rs`
-- [ ] Confirm `cargo check` is green
+- [x] Implement `commands::get_session_state(window) -> SessionState` that returns `{ logged_in: bool, username: Option<String>, last_sync_at: Option<chrono::DateTime<Utc>> }` — `logged_in` is true iff `sessionid` is present, `username` comes from the most recent snapshot, `last_sync_at` from `snapshots.taken_at`
+- [x] Implement `commands::sync_now(window) -> Result<SyncResult, AppError>`: harvest cookies → capture UA → `IgClient::new` → resolve own profile (using `ds_user_id` cookie to look up the username) → fetch followers → fetch following → `write_snapshot` → compute diff against previous snapshot → return `SyncResult`
+- [x] Implement `commands::get_latest_relationships() -> Result<Vec<Relationship>, AppError>` delegating to `db::get_relationships` at the latest snapshot id
+- [x] Implement `commands::get_diff_since_previous() -> Result<DiffResult, AppError>` using the latest two snapshots; if fewer than two snapshots exist, return an empty diff with `since = null`
+- [x] Implement `commands::open_profile(app: AppHandle, username: String)` calling `tauri_plugin_opener::OpenerExt::opener(&app).open_url(format!("https://instagram.com/{username}"), None::<String>)`
+- [x] Register all commands in the Tauri `invoke_handler!` macro in `main.rs`
+- [x] Confirm `cargo check` is green
 
 ### Task 6: Login view + main view with diff banner and table
 

@@ -18,3 +18,6 @@ dist/
 # Must use docs/* (not docs/) so negation can re-include children.
 docs/*
 !docs/plans/
+
+# Local-only Claude Code instructions
+CLAUDE.md

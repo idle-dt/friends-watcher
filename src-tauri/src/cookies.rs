@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
-use tauri::Url;
 
 use crate::error::{AppError, Result};
 
-pub const INSTAGRAM_URL: &str = "https://www.instagram.com/";
+const IG_DOMAIN_SUFFIX: &str = "instagram.com";
 
 // Must match the UA the IG WKWebView sends. We pin the value so the webview
 // (configured via WebviewWindowBuilder::user_agent) and the reqwest client
@@ -66,18 +65,28 @@ pub(crate) fn select(pairs: &[(String, String)]) -> Result<HarvestedCookies> {
     })
 }
 
-pub fn harvest(window: &tauri::WebviewWindow) -> Result<HarvestedCookies> {
-    let url: Url = INSTAGRAM_URL.parse().map_err(|_| {
-        AppError::Io(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "invalid instagram URL",
-        ))
-    })?;
-    let cookies = window.cookies_for_url(url).map_err(tauri_err)?;
-    let pairs: Vec<(String, String)> = cookies
+/// Returns (name, value) pairs for cookies scoped to any `*.instagram.com`
+/// domain in the webview's cookie jar.
+///
+/// We deliberately avoid `WebviewWindow::cookies_for_url` — in Tauri 2.10 on
+/// macOS that API's URL matcher drops cookies whose domain attribute is
+/// `instagram.com` (observed live: jar has 10+ IG cookies, filter returns 0).
+/// Iterating the full jar and matching by domain suffix is reliable.
+pub fn ig_cookie_pairs(window: &tauri::WebviewWindow) -> Result<Vec<(String, String)>> {
+    let all = window.cookies().map_err(tauri_err)?;
+    Ok(all
         .into_iter()
+        .filter(|c| {
+            c.domain()
+                .map(|d| d.trim_start_matches('.').ends_with(IG_DOMAIN_SUFFIX))
+                .unwrap_or(false)
+        })
         .map(|c| (c.name().to_string(), c.value().to_string()))
-        .collect();
+        .collect())
+}
+
+pub fn harvest(window: &tauri::WebviewWindow) -> Result<HarvestedCookies> {
+    let pairs = ig_cookie_pairs(window)?;
     select(&pairs)
 }
 

@@ -1,3 +1,4 @@
+mod avatars;
 mod commands;
 mod cookies;
 mod db;
@@ -34,6 +35,7 @@ pub fn run() {
       commands::get_diff_since_previous,
       commands::open_profile,
       commands::start_ig_login,
+      commands::get_avatar,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

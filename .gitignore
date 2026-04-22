@@ -14,10 +14,8 @@ dist/
 .env
 .env.*
 
-# Personal notes / drafts under docs, but keep docs/plans/ tracked.
-# Must use docs/* (not docs/) so negation can re-include children.
-docs/*
-!docs/plans/
+# Local notes, drafts, and plan archives — not tracked.
+docs/
 
 # Local-only Claude Code instructions and session data
 CLAUDE.md

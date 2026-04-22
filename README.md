@@ -106,6 +106,17 @@ security checkpoints there first.
 sync as a defensive safeguard. If you legitimately have more, that cap needs
 to be lifted in `src-tauri/src/instagram.rs`.
 
+**Starting over / switching accounts.** The Instagram session (cookies)
+persists across launches in macOS's WebKit data directory. To start from a
+clean state — useful for testing the first-launch flow or for switching to a
+different Instagram account — close the app, then run:
+
+```sh
+rm -rf ~/Library/WebKit/com.friendswatcher.app
+```
+
+The next launch will show the Instagram login page from scratch.
+
 ## Known limits
 
 - One Instagram account at a time.

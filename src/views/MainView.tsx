@@ -87,6 +87,13 @@ export function MainView({ session, onSessionExpired }: MainViewProps) {
     return base
   }, [relationships])
 
+  const changeByUserId = useMemo(() => {
+    const map = new Map<string, 'new' | 'unfollowed'>()
+    for (const u of diff.new_followers) map.set(u.ig_user_id, 'new')
+    for (const u of diff.lost_followers) map.set(u.ig_user_id, 'unfollowed')
+    return map
+  }, [diff])
+
   const lastSyncText = session.last_sync_at
     ? new Date(session.last_sync_at).toLocaleString()
     : 'never'
@@ -164,7 +171,11 @@ export function MainView({ session, onSessionExpired }: MainViewProps) {
               </thead>
               <tbody>
                 {filtered.map((r) => (
-                  <RelationshipRow key={r.ig_user_id} relationship={r} />
+                  <RelationshipRow
+                    key={r.ig_user_id}
+                    relationship={r}
+                    change={changeByUserId.get(r.ig_user_id) ?? null}
+                  />
                 ))}
               </tbody>
             </table>

@@ -20,9 +20,10 @@ const INITIAL_AVATAR: AvatarState = { key: '', objectUrl: null, broken: false }
 
 interface RelationshipRowProps {
   relationship: Relationship
+  change: 'new' | 'unfollowed' | null
 }
 
-export function RelationshipRow({ relationship: r }: RelationshipRowProps) {
+export function RelationshipRow({ relationship: r, change }: RelationshipRowProps) {
   const [avatar, setAvatar] = useState<AvatarState>(INITIAL_AVATAR)
   const currentKey = `${r.ig_user_id}|${r.profile_pic_url ?? ''}`
 
@@ -62,7 +63,7 @@ export function RelationshipRow({ relationship: r }: RelationshipRowProps) {
   const showImage = matchesCurrent && avatar.objectUrl !== null && !avatar.broken
 
   return (
-    <tr className="relationship-row">
+    <tr className={`relationship-row${change ? ` row-change-${change}` : ''}`}>
       <td className="col-avatar">
         {showImage ? (
           <img
@@ -101,6 +102,10 @@ export function RelationshipRow({ relationship: r }: RelationshipRowProps) {
       <td className="col-badges">
         {r.follows_you && <span className="badge badge-followsyou">Follows you</span>}
         {r.you_follow && <span className="badge badge-youfollow">You follow</span>}
+        {change === 'new' && <span className="badge badge-new">New</span>}
+        {change === 'unfollowed' && (
+          <span className="badge badge-unfollowed">Unfollowed you</span>
+        )}
       </td>
       <td className="col-status">
         <span className={`status status-${r.status}`}>{STATUS_LABEL[r.status]}</span>

@@ -32,10 +32,6 @@ function App() {
     refreshSession()
   }, [refreshSession])
 
-  const handleLogin = useCallback(() => {
-    refreshSession()
-  }, [refreshSession])
-
   const handleSessionExpired = useCallback(() => {
     setView({ kind: 'login' })
   }, [])
@@ -58,7 +54,7 @@ function App() {
   }
 
   if (view.kind === 'login') {
-    return <LoginView onLogin={handleLogin} />
+    return <LoginView />
   }
 
   return (

@@ -95,3 +95,7 @@ export function getDiffSincePrevious(): Promise<DiffResult> {
 export function openProfile(username: string): Promise<void> {
   return invoke<void>('open_profile', { username })
 }
+
+export function startIgLogin(): Promise<void> {
+  return invoke<void>('start_ig_login')
+}

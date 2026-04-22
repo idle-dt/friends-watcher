@@ -33,6 +33,7 @@ pub fn run() {
       commands::get_latest_relationships,
       commands::get_diff_since_previous,
       commands::open_profile,
+      commands::start_ig_login,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

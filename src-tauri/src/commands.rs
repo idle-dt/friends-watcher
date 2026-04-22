@@ -1,14 +1,34 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
+use std::time::Duration;
 
 use rusqlite::Connection;
-use tauri::{AppHandle, State, WebviewWindow};
+use tauri::{AppHandle, State, Url, WebviewWindow};
 use tauri_plugin_opener::OpenerExt;
 
-use crate::cookies::{capture_user_agent, harvest};
+use crate::cookies::{capture_user_agent, harvest, ig_cookie_pairs};
 use crate::db;
 use crate::error::AppError;
 use crate::instagram::IgClient;
 use crate::models::{DiffResult, Relationship, SessionState, SyncResult};
+
+const IG_LOGIN_URL: &str = "https://www.instagram.com/accounts/login/";
+// Cap polling at ~10 minutes (300 ticks × 2s). Plenty for a real login,
+// short enough that an abandoned attempt doesn't leave a task running forever.
+const LOGIN_POLL_TICKS: u32 = 300;
+const LOGIN_POLL_INTERVAL: Duration = Duration::from_secs(2);
+
+// Guards against concurrent login flows — React StrictMode double-mounts in
+// dev, and an occasional no-op re-render could otherwise spawn a second
+// polling task while the first is still running.
+static LOGIN_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
+
+fn tauri_io_err(e: tauri::Error) -> AppError {
+    AppError::Io(std::io::Error::new(
+        std::io::ErrorKind::Other,
+        format!("tauri: {e}"),
+    ))
+}
 
 pub struct DbState(pub Mutex<Connection>);
 
@@ -110,6 +130,83 @@ pub async fn get_diff_since_previous(
             lost_followers: Vec::new(),
         }),
     }
+}
+
+#[tauri::command]
+pub async fn start_ig_login(window: WebviewWindow) -> Result<(), AppError> {
+    // If a login flow is already running (double mount, loop retry), no-op.
+    if LOGIN_IN_PROGRESS
+        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+        .is_err()
+    {
+        log::info!("ig-login: already in progress; skipping duplicate call");
+        return Ok(());
+    }
+
+    let return_url = window.url().map_err(tauri_io_err)?;
+    let ig_url: Url = IG_LOGIN_URL
+        .parse()
+        .expect("static IG_LOGIN_URL parses as a Url");
+
+    log::info!("ig-login: starting; return_url={}", return_url);
+
+    // Spawn the polling task before navigating: if navigate() fails, the
+    // task simply expires after LOGIN_POLL_TICKS without doing damage.
+    let watch_window = window.clone();
+    tokio::spawn(async move {
+        log::info!("ig-login: polling task spawned");
+        for tick in 1..=LOGIN_POLL_TICKS {
+            tokio::time::sleep(LOGIN_POLL_INTERVAL).await;
+
+            let current_url = match watch_window.url() {
+                Ok(u) => u,
+                Err(e) => {
+                    log::warn!("ig-login: window.url() failed: {e}; stopping");
+                    break;
+                }
+            };
+
+            // If the user navigated away from instagram.com (closed the flow,
+            // or we already returned), stop polling.
+            if current_url
+                .host_str()
+                .map_or(true, |h| !h.contains("instagram.com"))
+            {
+                log::info!(
+                    "ig-login: window is off instagram.com (url={}); stopping",
+                    current_url
+                );
+                break;
+            }
+
+            let pairs = match ig_cookie_pairs(&watch_window) {
+                Ok(p) => p,
+                Err(e) => {
+                    log::warn!("ig-login: ig_cookie_pairs failed on tick {tick}: {e:?}");
+                    continue;
+                }
+            };
+            let logged_in = pairs
+                .iter()
+                .any(|(n, v)| n == "sessionid" && !v.is_empty());
+            if logged_in {
+                match watch_window.navigate(return_url.clone()) {
+                    Ok(()) => log::info!(
+                        "ig-login: sessionid detected on tick {tick}; navigated back to {}",
+                        return_url
+                    ),
+                    Err(e) => log::error!("ig-login: navigate back failed: {e}"),
+                }
+                break;
+            }
+        }
+        LOGIN_IN_PROGRESS.store(false, Ordering::Release);
+        log::info!("ig-login: polling task exiting");
+    });
+
+    log::info!("ig-login: navigating main webview to {}", ig_url);
+    window.navigate(ig_url).map_err(tauri_io_err)?;
+    Ok(())
 }
 
 #[tauri::command]

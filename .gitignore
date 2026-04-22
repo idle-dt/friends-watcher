@@ -19,5 +19,6 @@ dist/
 docs/*
 !docs/plans/
 
-# Local-only Claude Code instructions
+# Local-only Claude Code instructions and session data
 CLAUDE.md
+.claude/

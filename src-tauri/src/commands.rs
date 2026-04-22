@@ -216,12 +216,10 @@ pub async fn get_avatar(
     ig_user_id: String,
     url: String,
 ) -> Result<Vec<u8>, AppError> {
-    if url.is_empty() {
-        return Err(AppError::Io(std::io::Error::new(
-            std::io::ErrorKind::InvalidInput,
-            "avatar url is empty",
-        )));
-    }
+    // fetch_avatar revalidates, but checking at the command boundary keeps
+    // malformed callers from ever hitting cookie harvest or the filesystem.
+    avatars::validate_ig_user_id(&ig_user_id)?;
+    avatars::validate_avatar_url(&url)?;
     let cookies = harvest(&window)?;
     let user_agent = capture_user_agent(&window)?;
     avatars::fetch_avatar(&user_agent, &cookies.as_map(), &ig_user_id, &url).await

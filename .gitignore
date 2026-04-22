@@ -20,3 +20,6 @@ docs/
 # Local-only Claude Code instructions and session data
 CLAUDE.md
 .claude/
+
+# Local-only ralphex config (plans, prompts, agents, progress)
+.ralphex/

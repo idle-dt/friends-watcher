@@ -84,8 +84,9 @@ the first time:
 3. Log in with your Instagram account inside the embedded window. The app
    detects the login by watching the `sessionid` cookie and flips to the main
    view automatically.
-4. Click **Sync**. The first sync takes ~1.5 seconds per 50 followers (plus
-   the same for followings) because of the built-in rate-limit pacing.
+4. Click **Sync**. The first sync takes ~1.5 seconds per 50 followers because
+   of the built-in rate-limit pacing; followers and following are fetched
+   concurrently, so the wall-clock cost is the longer of the two lists.
 
 Subsequent launches open normally.
 

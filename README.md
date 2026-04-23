@@ -128,17 +128,21 @@ cached on disk under
 The cache has no expiry — if someone changes their profile picture, delete
 that file (or the whole `avatars/` folder) and sync again to refresh.
 
-**Starting over / switching accounts.** The Instagram session (cookies)
-persists across launches in macOS's WebKit data directory. To start from a
-clean state — useful for testing the first-launch flow or for switching to a
-different Instagram account — close the app, then run:
+**Starting over / switching accounts.** On-disk state is scattered across
+`~/Library/WebKit`, `~/Library/HTTPStorages`, `~/Library/Caches`,
+`~/Library/Logs`, and `~/Library/Application Support` — and in dev mode the
+paths use the binary name `friends-watcher`, while release mode uses the
+bundle id `com.friendswatcher.app`. Rather than ask you to memorise that, a
+script wipes both sets:
 
 ```sh
-rm -rf ~/Library/WebKit/com.friendswatcher.app
+./scripts/reset-state.sh
 ```
 
-The next launch will show the landing screen; click **Log in with Instagram**
-to sign in from scratch.
+The script quits any running instance first, then drops cookies, SQLite
+snapshots, and the avatar cache. The next launch shows the landing screen;
+click **Log in with Instagram** to sign in from scratch. Useful for testing
+the first-launch flow or for switching Instagram accounts.
 
 ## Known limits
 

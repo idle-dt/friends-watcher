@@ -109,48 +109,46 @@ pub async fn sync_now(
     );
 
     emit_sync_phase(&window, "followers");
-    let phase_start = Instant::now();
-    let followers_window = window.clone();
-    let followers = client
-        .fetch_followers(&profile.id, |fetched| {
-            if let Err(e) = followers_window.emit(
-                SYNC_PROGRESS_EVENT,
-                SyncProgress {
-                    phase: "followers",
-                    fetched: Some(fetched),
-                },
-            ) {
-                log::warn!(target: "sync", "emit followers progress failed: {e}");
-            }
-        })
-        .await?;
-    log::info!(
-        target: "sync",
-        "fetch_followers done in {}ms ({} users)",
-        phase_start.elapsed().as_millis(),
-        followers.len()
-    );
-
     emit_sync_phase(&window, "following");
     let phase_start = Instant::now();
+    let followers_window = window.clone();
     let following_window = window.clone();
-    let following = client
-        .fetch_following(&profile.id, |fetched| {
-            if let Err(e) = following_window.emit(
-                SYNC_PROGRESS_EVENT,
-                SyncProgress {
-                    phase: "following",
-                    fetched: Some(fetched),
-                },
-            ) {
-                log::warn!(target: "sync", "emit following progress failed: {e}");
-            }
-        })
-        .await?;
+    let followers_fut = async {
+        client
+            .fetch_followers(&profile.id, |fetched| {
+                if let Err(e) = followers_window.emit(
+                    SYNC_PROGRESS_EVENT,
+                    SyncProgress {
+                        phase: "followers",
+                        fetched: Some(fetched),
+                    },
+                ) {
+                    log::warn!(target: "sync", "emit followers progress failed: {e}");
+                }
+            })
+            .await
+    };
+    let following_fut = async {
+        client
+            .fetch_following(&profile.id, |fetched| {
+                if let Err(e) = following_window.emit(
+                    SYNC_PROGRESS_EVENT,
+                    SyncProgress {
+                        phase: "following",
+                        fetched: Some(fetched),
+                    },
+                ) {
+                    log::warn!(target: "sync", "emit following progress failed: {e}");
+                }
+            })
+            .await
+    };
+    let (followers, following) = tokio::try_join!(followers_fut, following_fut)?;
     log::info!(
         target: "sync",
-        "fetch_following done in {}ms ({} users)",
+        "fetch_followers+following done in {}ms (followers={}, following={})",
         phase_start.elapsed().as_millis(),
+        followers.len(),
         following.len()
     );
 

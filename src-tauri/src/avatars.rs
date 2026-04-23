@@ -84,7 +84,10 @@ fn write_cached(dir: &Path, ig_user_id: &str, bytes: &[u8]) -> std::io::Result<(
     let final_path = dir.join(ig_user_id);
     let tmp_path = dir.join(format!("{ig_user_id}.tmp"));
     std::fs::write(&tmp_path, bytes)?;
-    std::fs::rename(&tmp_path, &final_path)?;
+    if let Err(err) = std::fs::rename(&tmp_path, &final_path) {
+        let _ = std::fs::remove_file(&tmp_path);
+        return Err(err);
+    }
     Ok(())
 }
 
@@ -263,6 +266,34 @@ mod tests {
         assert_eq!(got, b"second");
         // The tmp file should be gone after rename.
         assert!(!dir.join(format!("{ig_user_id}.tmp")).exists());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn write_cached_removes_tmp_when_rename_fails() {
+        let dir = unique_tmp_dir("rename-fail");
+        let ig_user_id = "77";
+        // Pre-create the final path as a non-empty directory. On POSIX,
+        // rename(tmp_file -> non_empty_dir) fails with ENOTEMPTY / EISDIR,
+        // so write_cached must clean up the .tmp sidecar and surface the error.
+        let final_path = dir.join(ig_user_id);
+        std::fs::create_dir(&final_path).unwrap();
+        std::fs::write(final_path.join("blocker"), b"x").unwrap();
+
+        let result = write_cached(&dir, ig_user_id, b"payload");
+        let tmp_path = dir.join(format!("{ig_user_id}.tmp"));
+
+        if result.is_err() {
+            assert!(
+                !tmp_path.exists(),
+                ".tmp sidecar must be removed after rename failure"
+            );
+        } else {
+            // Some platforms may allow this rename; in that case the test is
+            // inapplicable and we skip without failing.
+            eprintln!("skipping rename-failure assertion: rename unexpectedly succeeded on this platform");
+        }
+
         std::fs::remove_dir_all(&dir).ok();
     }
 }

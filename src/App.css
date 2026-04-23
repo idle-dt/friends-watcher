@@ -96,6 +96,64 @@ body,
   color: var(--danger);
 }
 
+/* --- Landing view --- */
+
+.landing {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 48px 24px;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.landing-hero {
+  font-size: 28px;
+  margin: 0;
+  max-width: 520px;
+}
+
+.landing-lede {
+  color: var(--text);
+  font-size: 15px;
+  max-width: 520px;
+  line-height: 1.5;
+}
+
+.login-cta {
+  font-size: 15px;
+  padding: 10px 22px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: white;
+  border: 1px solid var(--accent-border);
+  cursor: pointer;
+  transition: opacity 0.2s;
+  margin-top: 8px;
+}
+
+.login-cta:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.login-cta:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.landing-status {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.landing-status.error {
+  color: var(--danger);
+}
+
 .diff-banner {
   display: flex;
   gap: 16px;

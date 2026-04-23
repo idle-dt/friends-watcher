@@ -1,6 +1,9 @@
+use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
+use image::codecs::jpeg::JpegEncoder;
+use image::ImageReader;
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, REFERER, USER_AGENT};
 use reqwest::{Client, Url};
 
@@ -15,6 +18,14 @@ const ACCEPT_VALUE: &str = "image/*,*/*;q=0.8";
 // leaves generous headroom while preventing an oversized or adversarial
 // response from ballooning memory.
 pub const MAX_AVATAR_BYTES: usize = 5 * 1024 * 1024;
+
+// Target size for cached avatars. The UI renders at 32×32 logical pixels
+// (64×64 physical on Retina), so 64×64 is the largest useful preview size.
+const AVATAR_THUMB_MAX: u32 = 64;
+// JPEG quality for re-encoded thumbnails. 85 is the standard perceptual
+// sweet spot — visually lossless for photos, ~10× smaller than the full CDN
+// payload for typical profile pics.
+const AVATAR_THUMB_JPEG_QUALITY: u8 = 85;
 
 // Instagram user IDs are numeric strings. Validating keeps the value safe to
 // use directly as a cache filename (no path traversal, no odd characters)
@@ -86,6 +97,23 @@ fn write_cached(dir: &Path, ig_user_id: &str, bytes: &[u8]) -> std::io::Result<(
         return Err(err);
     }
     Ok(())
+}
+
+// Decode the network body, resize to AVATAR_THUMB_MAX on the longest edge,
+// and re-encode as JPEG. Returns `None` on any decode/resize/encode error so
+// the caller can fall through to the original bytes — this path must never
+// make the app worse than today.
+fn downscale_to_thumbnail(bytes: &[u8]) -> Option<Vec<u8>> {
+    let reader = ImageReader::new(Cursor::new(bytes))
+        .with_guessed_format()
+        .ok()?;
+    let decoded = reader.decode().ok()?;
+    let thumb = decoded.thumbnail(AVATAR_THUMB_MAX, AVATAR_THUMB_MAX);
+    let rgb = thumb.to_rgb8();
+    let mut out = Vec::with_capacity(8 * 1024);
+    let encoder = JpegEncoder::new_with_quality(&mut out, AVATAR_THUMB_JPEG_QUALITY);
+    rgb.write_with_encoder(encoder).ok()?;
+    Some(out)
 }
 
 // Shared HTTP client for avatar downloads. CDN URLs are signed, so we omit
@@ -165,15 +193,29 @@ pub async fn fetch_avatar(
         }
         bytes.extend_from_slice(&chunk);
     }
+    let network_bytes = bytes.len();
+    let payload = match downscale_to_thumbnail(&bytes) {
+        Some(thumb) => thumb,
+        None => {
+            log::warn!(
+                target: "avatars",
+                "downscale failed for ig_user_id={} bytes={}; caching original",
+                ig_user_id,
+                network_bytes
+            );
+            bytes
+        }
+    };
     // Non-fatal: return the bytes even if the cache write fails.
-    let _ = write_cached(&dir, ig_user_id, &bytes);
+    let _ = write_cached(&dir, ig_user_id, &payload);
     log::debug!(
         target: "avatars",
-        "fetch_avatar cache=miss bytes={} elapsed={}ms",
-        bytes.len(),
+        "fetch_avatar cache=miss network_bytes={} stored_bytes={} elapsed={}ms",
+        network_bytes,
+        payload.len(),
         started.elapsed().as_millis()
     );
-    Ok(bytes)
+    Ok(payload)
 }
 
 #[cfg(test)]
@@ -273,6 +315,56 @@ mod tests {
         // Smoke: the client is usable; can't hit the network in tests, but we
         // can confirm construction returned Ok and the handle is returnable.
         let _ = http.client();
+    }
+
+    #[test]
+    fn thumbnail_roundtrip_smaller_than_source() {
+        use image::{ExtendedColorType, ImageEncoder, RgbImage};
+
+        // Build a 512x512 RGB image with a gradient so JPEG can't just
+        // collapse it into a trivial solid block; the encoded size should
+        // be comfortably larger than a 64x64 re-encode.
+        let mut img = RgbImage::new(512, 512);
+        for (x, y, pixel) in img.enumerate_pixels_mut() {
+            let r = (x & 0xFF) as u8;
+            let g = (y & 0xFF) as u8;
+            let b = ((x ^ y) & 0xFF) as u8;
+            *pixel = image::Rgb([r, g, b]);
+        }
+
+        let mut source = Vec::new();
+        let encoder = JpegEncoder::new_with_quality(&mut source, 90);
+        encoder
+            .write_image(img.as_raw(), 512, 512, ExtendedColorType::Rgb8)
+            .expect("source JPEG should encode");
+
+        let thumb = downscale_to_thumbnail(&source).expect("downscale should succeed on valid JPEG");
+        assert!(
+            thumb.len() < source.len(),
+            "thumbnail bytes ({}) must be strictly smaller than source ({})",
+            thumb.len(),
+            source.len()
+        );
+
+        let decoded = ImageReader::new(Cursor::new(&thumb))
+            .with_guessed_format()
+            .expect("thumb format should be guessable")
+            .decode()
+            .expect("thumb should decode");
+        let max_dim = decoded.width().max(decoded.height());
+        assert!(
+            max_dim <= AVATAR_THUMB_MAX,
+            "max thumbnail dimension {} exceeds target {}",
+            max_dim,
+            AVATAR_THUMB_MAX
+        );
+    }
+
+    #[test]
+    fn downscale_returns_none_on_garbage_input() {
+        // Non-fatal fallback path: malformed bytes must not panic and must
+        // return None so fetch_avatar can cache the original payload.
+        assert!(downscale_to_thumbnail(b"not an image at all").is_none());
     }
 
     #[test]

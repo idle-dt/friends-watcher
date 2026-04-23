@@ -82,8 +82,8 @@ h2 {
 
 h1 {
   font-size: var(--font-2xl);
-  letter-spacing: -1.68px;
-  margin: 32px 0;
+  letter-spacing: -0.6px;
+  margin: 16px 0;
 }
 h2 {
   font-size: var(--font-lg);

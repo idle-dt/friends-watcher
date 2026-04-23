@@ -3,7 +3,8 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use rusqlite::Connection;
-use tauri::{AppHandle, State, Url, WebviewWindow};
+use serde::Serialize;
+use tauri::{AppHandle, Emitter, State, Url, WebviewWindow};
 use tauri_plugin_opener::OpenerExt;
 
 use crate::avatars;
@@ -12,6 +13,27 @@ use crate::db;
 use crate::error::AppError;
 use crate::instagram::IgClient;
 use crate::models::{DiffResult, Relationship, SessionState, SyncResult};
+
+const SYNC_PROGRESS_EVENT: &str = "sync:progress";
+
+#[derive(Serialize, Clone)]
+struct SyncProgress {
+    phase: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    fetched: Option<usize>,
+}
+
+fn emit_sync_phase(window: &WebviewWindow, phase: &'static str) {
+    if let Err(e) = window.emit(
+        SYNC_PROGRESS_EVENT,
+        SyncProgress {
+            phase,
+            fetched: None,
+        },
+    ) {
+        log::warn!(target: "sync", "emit sync:progress {phase} failed: {e}");
+    }
+}
 
 const IG_LOGIN_URL: &str = "https://www.instagram.com/accounts/login/";
 // Cap polling at ~10 minutes (300 ticks × 2s). Plenty for a real login,
@@ -77,6 +99,7 @@ pub async fn sync_now(
     let client = IgClient::new(user_agent, cookies.as_map())?;
     log::info!(target: "sync", "harvest done in {}ms", phase_start.elapsed().as_millis());
 
+    emit_sync_phase(&window, "profile");
     let phase_start = Instant::now();
     let profile = client.resolve_profile_by_id(&ds_user_id).await?;
     log::info!(
@@ -85,8 +108,22 @@ pub async fn sync_now(
         phase_start.elapsed().as_millis()
     );
 
+    emit_sync_phase(&window, "followers");
     let phase_start = Instant::now();
-    let followers = client.fetch_followers(&profile.id).await?;
+    let followers_window = window.clone();
+    let followers = client
+        .fetch_followers(&profile.id, |fetched| {
+            if let Err(e) = followers_window.emit(
+                SYNC_PROGRESS_EVENT,
+                SyncProgress {
+                    phase: "followers",
+                    fetched: Some(fetched),
+                },
+            ) {
+                log::warn!(target: "sync", "emit followers progress failed: {e}");
+            }
+        })
+        .await?;
     log::info!(
         target: "sync",
         "fetch_followers done in {}ms ({} users)",
@@ -94,8 +131,22 @@ pub async fn sync_now(
         followers.len()
     );
 
+    emit_sync_phase(&window, "following");
     let phase_start = Instant::now();
-    let following = client.fetch_following(&profile.id).await?;
+    let following_window = window.clone();
+    let following = client
+        .fetch_following(&profile.id, |fetched| {
+            if let Err(e) = following_window.emit(
+                SYNC_PROGRESS_EVENT,
+                SyncProgress {
+                    phase: "following",
+                    fetched: Some(fetched),
+                },
+            ) {
+                log::warn!(target: "sync", "emit following progress failed: {e}");
+            }
+        })
+        .await?;
     log::info!(
         target: "sync",
         "fetch_following done in {}ms ({} users)",
@@ -106,6 +157,7 @@ pub async fn sync_now(
     let total_followers = followers.len() as i64;
     let total_following = following.len() as i64;
 
+    emit_sync_phase(&window, "writing");
     let phase_start = Instant::now();
     let mut guard = lock_db(&state)?;
     let snapshot_id = db::write_snapshot(

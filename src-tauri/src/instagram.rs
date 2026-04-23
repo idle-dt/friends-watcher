@@ -215,17 +215,32 @@ impl IgClient {
         })
     }
 
-    pub async fn fetch_followers(&self, user_id: &str) -> Result<Vec<UserRow>> {
-        self.fetch_paginated(&format!("/api/v1/friendships/{}/followers/", user_id))
-            .await
+    pub async fn fetch_followers<F>(&self, user_id: &str, progress: F) -> Result<Vec<UserRow>>
+    where
+        F: Fn(usize) + Send,
+    {
+        self.fetch_paginated(
+            &format!("/api/v1/friendships/{}/followers/", user_id),
+            progress,
+        )
+        .await
     }
 
-    pub async fn fetch_following(&self, user_id: &str) -> Result<Vec<UserRow>> {
-        self.fetch_paginated(&format!("/api/v1/friendships/{}/following/", user_id))
-            .await
+    pub async fn fetch_following<F>(&self, user_id: &str, progress: F) -> Result<Vec<UserRow>>
+    where
+        F: Fn(usize) + Send,
+    {
+        self.fetch_paginated(
+            &format!("/api/v1/friendships/{}/following/", user_id),
+            progress,
+        )
+        .await
     }
 
-    async fn fetch_paginated(&self, path: &str) -> Result<Vec<UserRow>> {
+    async fn fetch_paginated<F>(&self, path: &str, progress: F) -> Result<Vec<UserRow>>
+    where
+        F: Fn(usize) + Send,
+    {
         let mut out: Vec<UserRow> = Vec::new();
         let mut cursor: Option<String> = None;
         let mut first = true;
@@ -270,6 +285,8 @@ impl IgClient {
                 users_in_page,
                 page_start.elapsed().as_millis()
             );
+
+            progress(out.len());
 
             cursor = json
                 .get("next_max_id")

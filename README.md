@@ -81,10 +81,12 @@ the first time:
    **Open**.
 2. macOS will warn that the app is from an unidentified developer. Click
    **Open** again.
-3. Log in with your Instagram account inside the embedded window. The app
+3. Friends Watcher opens to a landing screen explaining what it does. Click
+   **Log in with Instagram** to load the embedded Instagram login.
+4. Log in with your Instagram account inside the embedded window. The app
    detects the login by watching the `sessionid` cookie and flips to the main
    view automatically.
-4. Click **Sync**. The first sync takes ~1.5 seconds per 50 followers because
+5. Click **Sync**. The first sync takes ~1.5 seconds per 50 followers because
    of the built-in rate-limit pacing; followers and following are fetched
    concurrently, so the wall-clock cost is the longer of the two lists.
 
@@ -105,9 +107,9 @@ markers tell you which rows those counts refer to.
 ## Troubleshooting
 
 **"Please log in again" banner.** Instagram returned 401 or a
-`login_required` body. Click the banner's login button; the app reopens the
-Instagram login page in the embedded webview. Re-authenticate and retry the
-sync.
+`login_required` body. Click the banner's login button; the app returns to
+the landing screen. Click **Log in with Instagram** to reopen the embedded
+Instagram login, re-authenticate, and retry the sync.
 
 **"Instagram is rate-limiting — try again later" banner.** Instagram returned
 429 or a `feedback_required` / `checkpoint_required` body. The client already
@@ -135,7 +137,8 @@ different Instagram account — close the app, then run:
 rm -rf ~/Library/WebKit/com.friendswatcher.app
 ```
 
-The next launch will show the Instagram login page from scratch.
+The next launch will show the landing screen; click **Log in with Instagram**
+to sign in from scratch.
 
 ## Known limits
 
@@ -149,6 +152,11 @@ The next launch will show the Instagram login page from scratch.
 
 ## Recent changes
 
+- First launch now opens to a landing screen that explains the app; the
+  embedded Instagram login loads only after you click **Log in with
+  Instagram**, instead of auto-redirecting on mount.
+- The "last sync" label in the header now updates immediately after a
+  successful sync instead of staying on "never" until the next launch.
 - Avatar cache writes now remove the `.tmp` sidecar when the atomic rename
   fails, instead of leaving it to linger in the cache directory.
 - `RelationshipRow` revokes the avatar blob URL immediately on image-decode

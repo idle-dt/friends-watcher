@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use reqwest::cookie::Jar;
 use reqwest::header::{
@@ -229,6 +229,7 @@ impl IgClient {
         let mut out: Vec<UserRow> = Vec::new();
         let mut cursor: Option<String> = None;
         let mut first = true;
+        let mut page_number: u32 = 0;
 
         loop {
             if out.len() >= MAX_USERS {
@@ -238,6 +239,7 @@ impl IgClient {
                 tokio::time::sleep(PAGE_SLEEP).await;
             }
             first = false;
+            page_number += 1;
 
             let cursor_owned = cursor.clone().unwrap_or_default();
             let mut params: Vec<(&str, &str)> = vec![("count", PAGE_SIZE)];
@@ -245,9 +247,12 @@ impl IgClient {
                 params.push(("max_id", cursor_owned.as_str()));
             }
 
+            let page_start = Instant::now();
             let json = self.send(path, &params).await?;
 
+            let mut users_in_page: usize = 0;
             if let Some(users) = json.get("users").and_then(|v| v.as_array()) {
+                users_in_page = users.len();
                 for user in users {
                     if let Some(row) = parse_user(user) {
                         out.push(row);
@@ -257,6 +262,14 @@ impl IgClient {
                     }
                 }
             }
+            log::debug!(
+                target: "sync",
+                "fetch_paginated {} page {} users={} in {}ms",
+                path,
+                page_number,
+                users_in_page,
+                page_start.elapsed().as_millis()
+            );
 
             cursor = json
                 .get("next_max_id")

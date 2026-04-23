@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use rusqlite::Connection;
 use tauri::{AppHandle, State, Url, WebviewWindow};
@@ -68,17 +68,45 @@ pub async fn sync_now(
     window: WebviewWindow,
     state: State<'_, DbState>,
 ) -> Result<SyncResult, AppError> {
+    let started = Instant::now();
+
+    let phase_start = Instant::now();
     let cookies = harvest(&window)?;
     let user_agent = capture_user_agent(&window)?;
     let ds_user_id = cookies.ds_user_id.clone();
     let client = IgClient::new(user_agent, cookies.as_map())?;
+    log::info!(target: "sync", "harvest done in {}ms", phase_start.elapsed().as_millis());
 
+    let phase_start = Instant::now();
     let profile = client.resolve_profile_by_id(&ds_user_id).await?;
+    log::info!(
+        target: "sync",
+        "resolve_profile_by_id done in {}ms",
+        phase_start.elapsed().as_millis()
+    );
+
+    let phase_start = Instant::now();
     let followers = client.fetch_followers(&profile.id).await?;
+    log::info!(
+        target: "sync",
+        "fetch_followers done in {}ms ({} users)",
+        phase_start.elapsed().as_millis(),
+        followers.len()
+    );
+
+    let phase_start = Instant::now();
     let following = client.fetch_following(&profile.id).await?;
+    log::info!(
+        target: "sync",
+        "fetch_following done in {}ms ({} users)",
+        phase_start.elapsed().as_millis(),
+        following.len()
+    );
+
     let total_followers = followers.len() as i64;
     let total_following = following.len() as i64;
 
+    let phase_start = Instant::now();
     let mut guard = lock_db(&state)?;
     let snapshot_id = db::write_snapshot(
         &mut *guard,
@@ -95,6 +123,17 @@ pub async fn sync_now(
         }
         None => (Vec::new(), Vec::new()),
     };
+    log::info!(
+        target: "sync",
+        "write_snapshot done in {}ms",
+        phase_start.elapsed().as_millis()
+    );
+
+    log::info!(
+        target: "sync",
+        "sync_now total {}ms",
+        started.elapsed().as_millis()
+    );
 
     Ok(SyncResult {
         new_followers,

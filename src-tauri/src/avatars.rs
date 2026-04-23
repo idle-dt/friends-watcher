@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use reqwest::cookie::Jar;
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, REFERER, USER_AGENT};
@@ -138,9 +138,16 @@ pub async fn fetch_avatar(
     validate_ig_user_id(ig_user_id)?;
     let target = validate_avatar_url(url)?;
 
+    let started = Instant::now();
     let dir = resolve_cache_dir()?;
     let cache_path = dir.join(ig_user_id);
     if let Ok(bytes) = read_cached(&cache_path) {
+        log::debug!(
+            target: "avatars",
+            "fetch_avatar cache=hit bytes={} elapsed={}ms",
+            bytes.len(),
+            started.elapsed().as_millis()
+        );
         return Ok(bytes);
     }
 
@@ -175,6 +182,12 @@ pub async fn fetch_avatar(
     }
     // Non-fatal: return the bytes even if the cache write fails.
     let _ = write_cached(&dir, ig_user_id, &bytes);
+    log::debug!(
+        target: "avatars",
+        "fetch_avatar cache=miss bytes={} elapsed={}ms",
+        bytes.len(),
+        started.elapsed().as_millis()
+    );
     Ok(bytes)
 }
 

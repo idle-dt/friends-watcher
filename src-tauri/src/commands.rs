@@ -108,8 +108,6 @@ pub async fn sync_now(
         phase_start.elapsed().as_millis()
     );
 
-    emit_sync_phase(&window, "followers");
-    emit_sync_phase(&window, "following");
     let phase_start = Instant::now();
     let followers_window = window.clone();
     let following_window = window.clone();

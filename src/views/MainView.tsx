@@ -35,6 +35,8 @@ export function MainView({ session, onSessionExpired }: MainViewProps) {
   const [diff, setDiff] = useState<DiffResult>(EMPTY_DIFF)
   const [syncing, setSyncing] = useState(false)
   const [progress, setProgress] = useState<SyncProgress | null>(null)
+  const [followersFetched, setFollowersFetched] = useState<number | null>(null)
+  const [followingFetched, setFollowingFetched] = useState<number | null>(null)
   const [loadingInitial, setLoadingInitial] = useState(true)
   const [error, setError] = useState<AppError | null>(null)
   const [filter, setFilter] = useState<FilterKey>('all')
@@ -67,17 +69,29 @@ export function MainView({ session, onSessionExpired }: MainViewProps) {
   const handleSync = useCallback(async () => {
     setSyncing(true)
     setProgress(null)
+    setFollowersFetched(null)
+    setFollowingFetched(null)
     setError(null)
-    const unlisten = await syncProgress(setProgress)
+    let unlisten: (() => void) | undefined
     try {
+      unlisten = await syncProgress((p) => {
+        setProgress(p)
+        if (p.phase === 'followers' && p.fetched !== undefined) {
+          setFollowersFetched(p.fetched)
+        } else if (p.phase === 'following' && p.fetched !== undefined) {
+          setFollowingFetched(p.fetched)
+        }
+      })
       await syncNow()
       await refresh()
     } catch (e) {
       setError(toAppError(e))
     } finally {
-      unlisten()
+      if (unlisten) unlisten()
       setSyncing(false)
       setProgress(null)
+      setFollowersFetched(null)
+      setFollowingFetched(null)
     }
   }, [refresh])
 
@@ -141,7 +155,7 @@ export function MainView({ session, onSessionExpired }: MainViewProps) {
 
       {syncing && (
         <div className="sync-progress" role="status">
-          {progressMessage(progress)}
+          {progressMessage(progress, followersFetched, followingFetched)}
         </div>
       )}
 
@@ -193,21 +207,27 @@ export function MainView({ session, onSessionExpired }: MainViewProps) {
   )
 }
 
-function progressMessage(progress: SyncProgress | null): string {
+function progressMessage(
+  progress: SyncProgress | null,
+  followersFetched: number | null,
+  followingFetched: number | null,
+): string {
   if (!progress) return 'Starting sync…'
   switch (progress.phase) {
     case 'profile':
       return 'Resolving profile…'
     case 'followers':
-      return progress.fetched !== undefined
-        ? `Fetching followers… (${progress.fetched})`
-        : 'Fetching followers…'
-    case 'following':
-      return progress.fetched !== undefined
-        ? `Fetching following… (${progress.fetched})`
-        : 'Fetching following…'
+    case 'following': {
+      const parts: string[] = []
+      if (followersFetched !== null) parts.push(`followers ${followersFetched}`)
+      if (followingFetched !== null) parts.push(`following ${followingFetched}`)
+      if (parts.length === 0) return 'Fetching followers and following…'
+      return `Fetching ${parts.join(' / ')}…`
+    }
     case 'writing':
       return 'Saving snapshot…'
+    default:
+      return 'Syncing…'
   }
 }
 

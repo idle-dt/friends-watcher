@@ -7,7 +7,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, State, Url, WebviewWindow};
 use tauri_plugin_opener::OpenerExt;
 
-use crate::avatars;
+use crate::avatars::{self, AvatarHttp};
 use crate::cookies::{capture_user_agent, harvest, ig_cookie_pairs};
 use crate::db;
 use crate::error::AppError;
@@ -301,17 +301,15 @@ pub async fn start_ig_login(window: WebviewWindow) -> Result<(), AppError> {
 
 #[tauri::command]
 pub async fn get_avatar(
-    window: WebviewWindow,
+    http: State<'_, AvatarHttp>,
     ig_user_id: String,
     url: String,
 ) -> Result<Vec<u8>, AppError> {
     // fetch_avatar revalidates, but checking at the command boundary keeps
-    // malformed callers from ever hitting cookie harvest or the filesystem.
+    // malformed callers from ever hitting the shared client or the filesystem.
     avatars::validate_ig_user_id(&ig_user_id)?;
     avatars::validate_avatar_url(&url)?;
-    let cookies = harvest(&window)?;
-    let user_agent = capture_user_agent(&window)?;
-    avatars::fetch_avatar(&user_agent, &cookies.as_map(), &ig_user_id, &url).await
+    avatars::fetch_avatar(http.client(), &ig_user_id, &url).await
 }
 
 #[tauri::command]

@@ -1,18 +1,15 @@
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use reqwest::cookie::Jar;
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, REFERER, USER_AGENT};
 use reqwest::{Client, Url};
 
+use crate::cookies::IG_WEBVIEW_USER_AGENT;
 use crate::db::APP_DIR_NAME;
 use crate::error::{AppError, Result};
 
 const REFERER_URL: &str = "https://www.instagram.com/";
 const ACCEPT_VALUE: &str = "image/*,*/*;q=0.8";
-const COOKIE_SEED_URL: &str = "https://www.instagram.com";
 
 // Hard cap on avatar response body. Profile pics are well under 1 MB; 5 MB
 // leaves generous headroom while preventing an oversized or adversarial
@@ -91,47 +88,36 @@ fn write_cached(dir: &Path, ig_user_id: &str, bytes: &[u8]) -> std::io::Result<(
     Ok(())
 }
 
-fn build_client(user_agent: &str, cookies: &HashMap<String, String>) -> Result<Client> {
-    let jar = Arc::new(Jar::default());
-    let seed_url: Url = COOKIE_SEED_URL.parse().map_err(|_| {
-        AppError::Io(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "invalid instagram base url",
-        ))
-    })?;
-    for name in ["sessionid", "csrftoken", "ds_user_id", "mid", "ig_did"] {
-        if let Some(value) = cookies.get(name) {
-            if !value.is_empty() {
-                let cookie_str = format!("{name}={value}; Domain=.instagram.com; Path=/");
-                jar.add_cookie_str(&cookie_str, &seed_url);
-            }
-        }
+// Shared HTTP client for avatar downloads. CDN URLs are signed, so we omit
+// the cookie jar (session cookies would only cause needless revalidation
+// churn). The UA is pinned to IG_WEBVIEW_USER_AGENT so CDN heuristics
+// continue to accept the request.
+pub struct AvatarHttp {
+    client: Client,
+}
+
+impl AvatarHttp {
+    pub fn new() -> Result<Self> {
+        let mut headers = HeaderMap::new();
+        headers.insert(ACCEPT, HeaderValue::from_static(ACCEPT_VALUE));
+        headers.insert(REFERER, HeaderValue::from_static(REFERER_URL));
+        headers.insert(USER_AGENT, HeaderValue::from_static(IG_WEBVIEW_USER_AGENT));
+
+        let client = Client::builder()
+            .default_headers(headers)
+            .timeout(Duration::from_secs(30))
+            .build()
+            .map_err(AppError::Network)?;
+        Ok(Self { client })
     }
 
-    let mut headers = HeaderMap::new();
-    headers.insert(ACCEPT, HeaderValue::from_static(ACCEPT_VALUE));
-    headers.insert(REFERER, HeaderValue::from_static(REFERER_URL));
-    headers.insert(
-        USER_AGENT,
-        HeaderValue::from_str(user_agent).map_err(|_| {
-            AppError::Io(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "user agent is not a valid header value",
-            ))
-        })?,
-    );
-
-    Client::builder()
-        .cookie_provider(jar)
-        .default_headers(headers)
-        .timeout(Duration::from_secs(30))
-        .build()
-        .map_err(AppError::Network)
+    pub fn client(&self) -> &Client {
+        &self.client
+    }
 }
 
 pub async fn fetch_avatar(
-    user_agent: &str,
-    cookies: &HashMap<String, String>,
+    client: &Client,
     ig_user_id: &str,
     url: &str,
 ) -> Result<Vec<u8>> {
@@ -151,8 +137,7 @@ pub async fn fetch_avatar(
         return Ok(bytes);
     }
 
-    let http = build_client(user_agent, cookies)?;
-    let mut response = http.get(target).send().await.map_err(AppError::Network)?;
+    let mut response = client.get(target).send().await.map_err(AppError::Network)?;
     let status = response.status();
     if !status.is_success() {
         return Err(AppError::Io(std::io::Error::new(
@@ -280,6 +265,14 @@ mod tests {
         // The tmp file should be gone after rename.
         assert!(!dir.join(format!("{ig_user_id}.tmp")).exists());
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn avatar_http_builds_with_pinned_ua() {
+        let http = AvatarHttp::new().expect("client construction should succeed");
+        // Smoke: the client is usable; can't hit the network in tests, but we
+        // can confirm construction returned Ok and the handle is returnable.
+        let _ = http.client();
     }
 
     #[test]

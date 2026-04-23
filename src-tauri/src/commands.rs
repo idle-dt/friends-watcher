@@ -6,6 +6,7 @@ use rusqlite::Connection;
 use tauri::{AppHandle, State, Url, WebviewWindow};
 use tauri_plugin_opener::OpenerExt;
 
+use crate::avatars;
 use crate::cookies::{capture_user_agent, harvest, ig_cookie_pairs};
 use crate::db;
 use crate::error::AppError;
@@ -207,6 +208,21 @@ pub async fn start_ig_login(window: WebviewWindow) -> Result<(), AppError> {
     log::info!("ig-login: navigating main webview to {}", ig_url);
     window.navigate(ig_url).map_err(tauri_io_err)?;
     Ok(())
+}
+
+#[tauri::command]
+pub async fn get_avatar(
+    window: WebviewWindow,
+    ig_user_id: String,
+    url: String,
+) -> Result<Vec<u8>, AppError> {
+    // fetch_avatar revalidates, but checking at the command boundary keeps
+    // malformed callers from ever hitting cookie harvest or the filesystem.
+    avatars::validate_ig_user_id(&ig_user_id)?;
+    avatars::validate_avatar_url(&url)?;
+    let cookies = harvest(&window)?;
+    let user_agent = capture_user_agent(&window)?;
+    avatars::fetch_avatar(&user_agent, &cookies.as_map(), &ig_user_id, &url).await
 }
 
 #[tauri::command]

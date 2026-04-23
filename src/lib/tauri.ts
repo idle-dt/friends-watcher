@@ -99,3 +99,14 @@ export function openProfile(username: string): Promise<void> {
 export function startIgLogin(): Promise<void> {
   return invoke<void>('start_ig_login')
 }
+
+export async function getAvatar(
+  ig_user_id: string,
+  url: string,
+): Promise<Uint8Array> {
+  const bytes = await invoke<number[]>('get_avatar', {
+    igUserId: ig_user_id,
+    url,
+  })
+  return Uint8Array.from(bytes)
+}

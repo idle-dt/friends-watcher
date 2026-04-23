@@ -24,12 +24,13 @@ v1 is strictly read-only:
 
 - No password ever leaves the webview. You log in to Instagram the same way you
   would in a browser; Friends Watcher never sees your credentials.
-- No server. There is no backend — the app talks directly to
-  `instagram.com/api/v1/` from your machine.
+- No server. There is no backend — the app talks directly to Instagram
+  (`instagram.com/api/v1/` for data, Instagram's image CDN for avatars) from
+  your machine.
 - No telemetry. Nothing is sent anywhere except Instagram.
-- All data — session cookies and follower snapshots — lives in
-  `~/Library/Application Support/com.friendswatcher.app/`. Delete that folder
-  to wipe everything.
+- All data — session cookies, follower snapshots, and cached profile avatars
+  — lives in `~/Library/Application Support/com.friendswatcher.app/`. Delete
+  that folder to wipe everything.
 
 ## Prerequisites
 
@@ -88,6 +89,18 @@ the first time:
 
 Subsequent launches open normally.
 
+## Change markers
+
+After each sync, rows in the main list are tagged relative to the previous
+snapshot:
+
+- New followers get a green stripe on the left edge and a **New** pill.
+- People who unfollowed you (and whom you still follow) get an amber stripe
+  and an **Unfollowed you** pill.
+
+The diff banner at the top still shows the aggregate counts; the per-row
+markers tell you which rows those counts refer to.
+
 ## Troubleshooting
 
 **"Please log in again" banner.** Instagram returned 401 or a
@@ -106,6 +119,12 @@ security checkpoints there first.
 sync as a defensive safeguard. If you legitimately have more, that cap needs
 to be lifted in `src-tauri/src/instagram.rs`.
 
+**Avatar looks stale.** Avatars are fetched through the Rust backend and
+cached on disk under
+`~/Library/Application Support/com.friendswatcher.app/avatars/<ig_user_id>`.
+The cache has no expiry — if someone changes their profile picture, delete
+that file (or the whole `avatars/` folder) and sync again to refresh.
+
 **Starting over / switching accounts.** The Instagram session (cookies)
 persists across launches in macOS's WebKit data directory. To start from a
 clean state — useful for testing the first-launch flow or for switching to a
@@ -123,4 +142,6 @@ The next launch will show the Instagram login page from scratch.
 - 20,000-user defensive cap per sync.
 - v1 is read-only — no unfollow, no bulk actions.
 - Sync is manual only. There is no scheduled or background refresh.
+- Cached avatars never expire. If someone changes their profile picture, delete
+  their file under `<app-data>/avatars/` to force a refetch.
 - macOS only. The code leans on WKWebView and the macOS data directory layout.

@@ -73,9 +73,11 @@ export function RelationshipRow({ relationship: r, change }: RelationshipRowProp
             width={32}
             height={32}
             loading="lazy"
-            onError={() =>
+            onError={() => {
+              const stale = avatar.objectUrl
+              if (stale) URL.revokeObjectURL(stale)
               setAvatar({ key: currentKey, objectUrl: null, broken: true })
-            }
+            }}
           />
         ) : (
           <span className="avatar avatar-fallback" aria-hidden="true">

@@ -1,17 +1,39 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use rusqlite::Connection;
-use tauri::{AppHandle, State, Url, WebviewWindow};
+use serde::Serialize;
+use tauri::{AppHandle, Emitter, State, Url, WebviewWindow};
 use tauri_plugin_opener::OpenerExt;
 
-use crate::avatars;
+use crate::avatars::{self, AvatarHttp};
 use crate::cookies::{capture_user_agent, harvest, ig_cookie_pairs};
 use crate::db;
 use crate::error::AppError;
 use crate::instagram::IgClient;
 use crate::models::{DiffResult, Relationship, SessionState, SyncResult};
+
+const SYNC_PROGRESS_EVENT: &str = "sync:progress";
+
+#[derive(Serialize, Clone)]
+struct SyncProgress {
+    phase: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    fetched: Option<usize>,
+}
+
+fn emit_sync_phase(window: &WebviewWindow, phase: &'static str) {
+    if let Err(e) = window.emit(
+        SYNC_PROGRESS_EVENT,
+        SyncProgress {
+            phase,
+            fetched: None,
+        },
+    ) {
+        log::warn!(target: "sync", "emit sync:progress {phase} failed: {e}");
+    }
+}
 
 const IG_LOGIN_URL: &str = "https://www.instagram.com/accounts/login/";
 // Cap polling at ~10 minutes (300 ticks × 2s). Plenty for a real login,
@@ -68,17 +90,71 @@ pub async fn sync_now(
     window: WebviewWindow,
     state: State<'_, DbState>,
 ) -> Result<SyncResult, AppError> {
+    let started = Instant::now();
+
+    let phase_start = Instant::now();
     let cookies = harvest(&window)?;
     let user_agent = capture_user_agent(&window)?;
     let ds_user_id = cookies.ds_user_id.clone();
     let client = IgClient::new(user_agent, cookies.as_map())?;
+    log::info!(target: "sync", "harvest done in {}ms", phase_start.elapsed().as_millis());
 
+    emit_sync_phase(&window, "profile");
+    let phase_start = Instant::now();
     let profile = client.resolve_profile_by_id(&ds_user_id).await?;
-    let followers = client.fetch_followers(&profile.id).await?;
-    let following = client.fetch_following(&profile.id).await?;
+    log::info!(
+        target: "sync",
+        "resolve_profile_by_id done in {}ms",
+        phase_start.elapsed().as_millis()
+    );
+
+    let phase_start = Instant::now();
+    let followers_window = window.clone();
+    let following_window = window.clone();
+    let followers_fut = async {
+        client
+            .fetch_followers(&profile.id, |fetched| {
+                if let Err(e) = followers_window.emit(
+                    SYNC_PROGRESS_EVENT,
+                    SyncProgress {
+                        phase: "followers",
+                        fetched: Some(fetched),
+                    },
+                ) {
+                    log::warn!(target: "sync", "emit followers progress failed: {e}");
+                }
+            })
+            .await
+    };
+    let following_fut = async {
+        client
+            .fetch_following(&profile.id, |fetched| {
+                if let Err(e) = following_window.emit(
+                    SYNC_PROGRESS_EVENT,
+                    SyncProgress {
+                        phase: "following",
+                        fetched: Some(fetched),
+                    },
+                ) {
+                    log::warn!(target: "sync", "emit following progress failed: {e}");
+                }
+            })
+            .await
+    };
+    let (followers, following) = tokio::try_join!(followers_fut, following_fut)?;
+    log::info!(
+        target: "sync",
+        "fetch_followers+following done in {}ms (followers={}, following={})",
+        phase_start.elapsed().as_millis(),
+        followers.len(),
+        following.len()
+    );
+
     let total_followers = followers.len() as i64;
     let total_following = following.len() as i64;
 
+    emit_sync_phase(&window, "writing");
+    let phase_start = Instant::now();
     let mut guard = lock_db(&state)?;
     let snapshot_id = db::write_snapshot(
         &mut *guard,
@@ -95,6 +171,17 @@ pub async fn sync_now(
         }
         None => (Vec::new(), Vec::new()),
     };
+    log::info!(
+        target: "sync",
+        "write_snapshot done in {}ms",
+        phase_start.elapsed().as_millis()
+    );
+
+    log::info!(
+        target: "sync",
+        "sync_now total {}ms",
+        started.elapsed().as_millis()
+    );
 
     Ok(SyncResult {
         new_followers,
@@ -212,17 +299,15 @@ pub async fn start_ig_login(window: WebviewWindow) -> Result<(), AppError> {
 
 #[tauri::command]
 pub async fn get_avatar(
-    window: WebviewWindow,
+    http: State<'_, AvatarHttp>,
     ig_user_id: String,
     url: String,
 ) -> Result<Vec<u8>, AppError> {
     // fetch_avatar revalidates, but checking at the command boundary keeps
-    // malformed callers from ever hitting cookie harvest or the filesystem.
+    // malformed callers from ever hitting the shared client or the filesystem.
     avatars::validate_ig_user_id(&ig_user_id)?;
     avatars::validate_avatar_url(&url)?;
-    let cookies = harvest(&window)?;
-    let user_agent = capture_user_agent(&window)?;
-    avatars::fetch_avatar(&user_agent, &cookies.as_map(), &ig_user_id, &url).await
+    avatars::fetch_avatar(http.client(), &ig_user_id, &url).await
 }
 
 #[tauri::command]

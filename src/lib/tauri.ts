@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
+import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 
 export type RelationshipStatus = 'mutual' | 'fan' | 'ghost' | 'new' | 'lost'
 
@@ -38,6 +39,13 @@ export interface DiffResult {
   since: string | null
   new_followers: UserRow[]
   lost_followers: UserRow[]
+}
+
+export type SyncPhase = 'profile' | 'followers' | 'following' | 'writing'
+
+export interface SyncProgress {
+  phase: SyncPhase
+  fetched?: number
 }
 
 export type AppError =
@@ -82,6 +90,12 @@ export function getSessionState(): Promise<SessionState> {
 
 export function syncNow(): Promise<SyncResult> {
   return invoke<SyncResult>('sync_now')
+}
+
+export function syncProgress(
+  cb: (progress: SyncProgress) => void,
+): Promise<UnlistenFn> {
+  return listen<SyncProgress>('sync:progress', (event) => cb(event.payload))
 }
 
 export function getLatestRelationships(): Promise<Relationship[]> {

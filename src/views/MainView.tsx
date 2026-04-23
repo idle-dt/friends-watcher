@@ -3,11 +3,13 @@ import {
   getDiffSincePrevious,
   getLatestRelationships,
   syncNow,
+  syncProgress,
   toAppError,
   type AppError,
   type DiffResult,
   type Relationship,
   type SessionState,
+  type SyncProgress,
 } from '../lib/tauri'
 import { DiffBanner } from '../components/DiffBanner'
 import { RelationshipRow } from '../components/RelationshipRow'
@@ -32,6 +34,9 @@ export function MainView({ session, onSessionExpired }: MainViewProps) {
   const [relationships, setRelationships] = useState<Relationship[]>([])
   const [diff, setDiff] = useState<DiffResult>(EMPTY_DIFF)
   const [syncing, setSyncing] = useState(false)
+  const [progress, setProgress] = useState<SyncProgress | null>(null)
+  const [followersFetched, setFollowersFetched] = useState<number | null>(null)
+  const [followingFetched, setFollowingFetched] = useState<number | null>(null)
   const [loadingInitial, setLoadingInitial] = useState(true)
   const [error, setError] = useState<AppError | null>(null)
   const [filter, setFilter] = useState<FilterKey>('all')
@@ -63,14 +68,30 @@ export function MainView({ session, onSessionExpired }: MainViewProps) {
 
   const handleSync = useCallback(async () => {
     setSyncing(true)
+    setProgress(null)
+    setFollowersFetched(null)
+    setFollowingFetched(null)
     setError(null)
+    let unlisten: (() => void) | undefined
     try {
+      unlisten = await syncProgress((p) => {
+        setProgress(p)
+        if (p.phase === 'followers' && p.fetched !== undefined) {
+          setFollowersFetched(p.fetched)
+        } else if (p.phase === 'following' && p.fetched !== undefined) {
+          setFollowingFetched(p.fetched)
+        }
+      })
       await syncNow()
       await refresh()
     } catch (e) {
       setError(toAppError(e))
     } finally {
+      if (unlisten) unlisten()
       setSyncing(false)
+      setProgress(null)
+      setFollowersFetched(null)
+      setFollowingFetched(null)
     }
   }, [refresh])
 
@@ -134,7 +155,7 @@ export function MainView({ session, onSessionExpired }: MainViewProps) {
 
       {syncing && (
         <div className="sync-progress" role="status">
-          Checking followers — this can take up to a minute.
+          {progressMessage(progress, followersFetched, followingFetched)}
         </div>
       )}
 
@@ -184,6 +205,30 @@ export function MainView({ session, onSessionExpired }: MainViewProps) {
       )}
     </div>
   )
+}
+
+function progressMessage(
+  progress: SyncProgress | null,
+  followersFetched: number | null,
+  followingFetched: number | null,
+): string {
+  if (!progress) return 'Starting sync…'
+  switch (progress.phase) {
+    case 'profile':
+      return 'Resolving profile…'
+    case 'followers':
+    case 'following': {
+      const parts: string[] = []
+      if (followersFetched !== null) parts.push(`followers ${followersFetched}`)
+      if (followingFetched !== null) parts.push(`following ${followingFetched}`)
+      if (parts.length === 0) return 'Fetching followers and following…'
+      return `Fetching ${parts.join(' / ')}…`
+    }
+    case 'writing':
+      return 'Saving snapshot…'
+    default:
+      return 'Syncing…'
+  }
 }
 
 interface FilterButtonProps {

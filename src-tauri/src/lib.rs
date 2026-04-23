@@ -8,6 +8,7 @@ mod models;
 
 use tauri::Manager;
 
+use crate::avatars::AvatarHttp;
 use crate::commands::DbState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -26,6 +27,7 @@ pub fn run() {
       db::init_schema(&conn)?;
       log::info!("sqlite schema ready");
       app.manage(DbState::new(conn));
+      app.manage(AvatarHttp::new()?);
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![

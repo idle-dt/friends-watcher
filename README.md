@@ -145,3 +145,14 @@ The next launch will show the Instagram login page from scratch.
 - Cached avatars never expire. If someone changes their profile picture, delete
   their file under `<app-data>/avatars/` to force a refetch.
 - macOS only. The code leans on WKWebView and the macOS data directory layout.
+
+## Recent changes
+
+- Avatar cache writes now remove the `.tmp` sidecar when the atomic rename
+  fails, instead of leaving it to linger in the cache directory.
+- `RelationshipRow` revokes the avatar blob URL immediately on image-decode
+  failure, shortening the window in which a broken object URL is retained.
+- Sync fetches followers and following concurrently, roughly halving
+  wall-clock time on accounts where both lists are sizeable.
+- Cached avatars are downscaled to 64×64 JPEG before hitting disk, so each
+  row loads a few kilobytes instead of the full CDN payload.

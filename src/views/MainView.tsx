@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   getDiffSincePrevious,
   getLatestRelationships,
+  getSessionState,
   syncNow,
   syncProgress,
   toAppError,
@@ -28,9 +29,14 @@ type FilterKey = 'all' | 'mutual' | 'fan' | 'ghost'
 interface MainViewProps {
   session: SessionState
   onSessionExpired: () => void
+  onSessionChanged: (session: SessionState) => void
 }
 
-export function MainView({ session, onSessionExpired }: MainViewProps) {
+export function MainView({
+  session,
+  onSessionExpired,
+  onSessionChanged,
+}: MainViewProps) {
   const [relationships, setRelationships] = useState<Relationship[]>([])
   const [diff, setDiff] = useState<DiffResult>(EMPTY_DIFF)
   const [syncing, setSyncing] = useState(false)
@@ -84,6 +90,12 @@ export function MainView({ session, onSessionExpired }: MainViewProps) {
       })
       await syncNow()
       await refresh()
+      try {
+        const next = await getSessionState()
+        onSessionChanged(next)
+      } catch (e) {
+        console.warn('failed to refresh session after sync', e)
+      }
     } catch (e) {
       setError(toAppError(e))
     } finally {
@@ -93,7 +105,7 @@ export function MainView({ session, onSessionExpired }: MainViewProps) {
       setFollowersFetched(null)
       setFollowingFetched(null)
     }
-  }, [refresh])
+  }, [refresh, onSessionChanged])
 
   const filtered = useMemo(() => {
     if (filter === 'all') return relationships

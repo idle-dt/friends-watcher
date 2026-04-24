@@ -39,13 +39,13 @@ body,
 }
 
 .view-header h1 {
-  font-size: 22px;
+  font-size: var(--font-xl);
   margin: 0;
   letter-spacing: -0.2px;
 }
 
 .view-header .subtitle {
-  font-size: 13px;
+  font-size: var(--font-sm);
   color: var(--text);
   margin-top: 2px;
 }
@@ -56,7 +56,7 @@ body,
 }
 
 .sync-button {
-  font-size: 14px;
+  font-size: var(--font-md);
   padding: 8px 18px;
   border-radius: 6px;
   background: var(--accent);
@@ -82,17 +82,61 @@ body,
   min-height: 400px;
 }
 
-.login-webview-placeholder {
+/* --- Landing view --- */
+
+.landing {
   position: absolute;
   inset: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--text);
-  font-size: 14px;
+  gap: 16px;
+  padding: 48px 24px;
+  text-align: center;
+  box-sizing: border-box;
 }
 
-.login-webview-placeholder .error {
+.landing-hero {
+  font-size: var(--font-2xl);
+  margin: 0;
+  max-width: 520px;
+}
+
+.landing-lede {
+  color: var(--text);
+  font-size: var(--font-md);
+  max-width: 520px;
+  line-height: 1.5;
+}
+
+.login-cta {
+  font-size: var(--font-md);
+  padding: 10px 22px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: white;
+  border: 1px solid var(--accent-border);
+  cursor: pointer;
+  transition: opacity 0.2s;
+  margin-top: 8px;
+}
+
+.login-cta:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.login-cta:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.landing-status {
+  font-size: var(--font-sm);
+  color: var(--text);
+}
+
+.landing-status.error {
   color: var(--danger);
 }
 
@@ -104,7 +148,7 @@ body,
   padding: 12px 24px;
   border-bottom: 1px solid var(--border);
   background: var(--surface-alt);
-  font-size: 14px;
+  font-size: var(--font-md);
 }
 
 .diff-banner-counts {
@@ -124,14 +168,14 @@ body,
 
 .diff-banner-since {
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--font-xs);
 }
 
 .sync-progress,
 .main-loading {
   padding: 10px 24px;
   border-bottom: 1px solid var(--border);
-  font-size: 13px;
+  font-size: var(--font-sm);
   color: var(--text);
 }
 
@@ -140,7 +184,7 @@ body,
   border-bottom: 1px solid var(--border);
   background: rgba(231, 76, 60, 0.12);
   color: var(--danger);
-  font-size: 13px;
+  font-size: var(--font-sm);
 }
 
 .banner {
@@ -150,7 +194,7 @@ body,
   gap: 16px;
   padding: 12px 24px;
   border-bottom: 1px solid var(--border);
-  font-size: 13px;
+  font-size: var(--font-sm);
 }
 
 .banner-body {
@@ -160,7 +204,7 @@ body,
 }
 
 .banner-body strong {
-  font-size: 13px;
+  font-size: var(--font-sm);
   font-weight: 600;
 }
 
@@ -181,7 +225,7 @@ body,
   color: white;
   border: none;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--font-sm);
 }
 
 .banner-action:hover {
@@ -202,7 +246,7 @@ body,
   border: 1px solid var(--border);
   background: transparent;
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--font-sm);
   cursor: pointer;
 }
 
@@ -221,7 +265,7 @@ body,
 .relationships-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: var(--font-md);
 }
 
 .relationships-table th,
@@ -239,7 +283,7 @@ body,
   z-index: 1;
   font-weight: 500;
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--font-xs);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -269,7 +313,7 @@ body,
 
 .avatar-fallback {
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--font-xs);
   font-weight: 600;
 }
 
@@ -284,20 +328,20 @@ body,
 }
 
 .full-name {
-  font-size: 12px;
+  font-size: var(--font-xs);
   color: var(--text);
 }
 
 .verified {
   color: var(--accent);
-  font-size: 12px;
+  font-size: var(--font-xs);
 }
 
 .badge {
   display: inline-block;
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: var(--font-xs);
   margin-right: 4px;
   border: 1px solid var(--border);
   color: var(--text);
@@ -335,7 +379,7 @@ body,
   display: inline-block;
   padding: 2px 10px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: var(--font-xs);
   font-weight: 500;
 }
 
@@ -372,7 +416,7 @@ body,
 
 .status-empty h2 {
   margin: 0 0 8px;
-  font-size: 18px;
+  font-size: var(--font-lg);
 }
 
 .app-loading,

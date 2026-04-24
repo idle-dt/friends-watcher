@@ -36,6 +36,10 @@ function App() {
     setView({ kind: 'login' })
   }, [])
 
+  const handleSessionChanged = useCallback((session: SessionState) => {
+    setView((prev) => (prev.kind === 'main' ? { kind: 'main', session } : prev))
+  }, [])
+
   if (view.kind === 'loading') {
     return (
       <div className="app-loading" role="status">
@@ -58,7 +62,11 @@ function App() {
   }
 
   return (
-    <MainView session={view.session} onSessionExpired={handleSessionExpired} />
+    <MainView
+      session={view.session}
+      onSessionExpired={handleSessionExpired}
+      onSessionChanged={handleSessionChanged}
+    />
   )
 }
 

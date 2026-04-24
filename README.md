@@ -81,10 +81,12 @@ the first time:
    **Open**.
 2. macOS will warn that the app is from an unidentified developer. Click
    **Open** again.
-3. Log in with your Instagram account inside the embedded window. The app
+3. Friends Watcher opens to a landing screen explaining what it does. Click
+   **Log in with Instagram** to load the embedded Instagram login.
+4. Log in with your Instagram account inside the embedded window. The app
    detects the login by watching the `sessionid` cookie and flips to the main
    view automatically.
-4. Click **Sync**. The first sync takes ~1.5 seconds per 50 followers because
+5. Click **Sync**. The first sync takes ~1.5 seconds per 50 followers because
    of the built-in rate-limit pacing; followers and following are fetched
    concurrently, so the wall-clock cost is the longer of the two lists.
 
@@ -105,9 +107,9 @@ markers tell you which rows those counts refer to.
 ## Troubleshooting
 
 **"Please log in again" banner.** Instagram returned 401 or a
-`login_required` body. Click the banner's login button; the app reopens the
-Instagram login page in the embedded webview. Re-authenticate and retry the
-sync.
+`login_required` body. Click the banner's login button; the app returns to
+the landing screen. Click **Log in with Instagram** to reopen the embedded
+Instagram login, re-authenticate, and retry the sync.
 
 **"Instagram is rate-limiting — try again later" banner.** Instagram returned
 429 or a `feedback_required` / `checkpoint_required` body. The client already
@@ -126,16 +128,21 @@ cached on disk under
 The cache has no expiry — if someone changes their profile picture, delete
 that file (or the whole `avatars/` folder) and sync again to refresh.
 
-**Starting over / switching accounts.** The Instagram session (cookies)
-persists across launches in macOS's WebKit data directory. To start from a
-clean state — useful for testing the first-launch flow or for switching to a
-different Instagram account — close the app, then run:
+**Starting over / switching accounts.** On-disk state is scattered across
+`~/Library/WebKit`, `~/Library/HTTPStorages`, `~/Library/Caches`,
+`~/Library/Logs`, and `~/Library/Application Support` — and in dev mode the
+paths use the binary name `friends-watcher`, while release mode uses the
+bundle id `com.friendswatcher.app`. Rather than ask you to memorise that, a
+script wipes both sets:
 
 ```sh
-rm -rf ~/Library/WebKit/com.friendswatcher.app
+./scripts/reset-state.sh
 ```
 
-The next launch will show the Instagram login page from scratch.
+The script quits any running instance first, then drops cookies, SQLite
+snapshots, and the avatar cache. The next launch shows the landing screen;
+click **Log in with Instagram** to sign in from scratch. Useful for testing
+the first-launch flow or for switching Instagram accounts.
 
 ## Known limits
 
@@ -149,6 +156,11 @@ The next launch will show the Instagram login page from scratch.
 
 ## Recent changes
 
+- First launch now opens to a landing screen that explains the app; the
+  embedded Instagram login loads only after you click **Log in with
+  Instagram**, instead of auto-redirecting on mount.
+- The "last sync" label in the header now updates immediately after a
+  successful sync instead of staying on "never" until the next launch.
 - Avatar cache writes now remove the `.tmp` sidecar when the atomic rename
   fails, instead of leaving it to linger in the cache directory.
 - `RelationshipRow` revokes the avatar blob URL immediately on image-decode
